@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#1a1a1a"/>
+  <g fill="#ffffff" stroke="#ffffff" stroke-width="22" stroke-linejoin="round" stroke-linecap="round">
+    <!-- 上：右向き矢印（誰かがフロントに上がる） -->
+    <polygon points="150,180 308,180 308,164 366,198 308,232 308,216 150,216"/>
+    <!-- 下：左向き矢印（誰かがフロントから下りる） -->
+    <polygon points="362,296 204,296 204,280 146,314 204,348 204,332 362,332"/>
+  </g>
+</svg>
