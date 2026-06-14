@@ -307,6 +307,7 @@ let msgContent          = '';
 let msgFromAlterId      = null;
 let msgToAlterId        = 'all';
 let showTermsView       = false; // 設定から規約を読み返すとき true
+let showHelpView        = false; // 設定から使い方を開いているとき true
 let updateInfo          = null;  // 既存ユーザーが更新したとき { from, to } が入る
 let importDismissed     = false; // Mosaicインポートで「新しく始める」を選んだら true
 let showCodeImport      = false; // 初期起動でコード取り込み画面を出しているとき true
@@ -445,6 +446,11 @@ function render() {
     app.innerHTML = renderTerms(true);
     return;
   }
+  // 設定から使い方を開いたとき
+  if (showHelpView) {
+    app.innerHTML = renderHelp();
+    return;
+  }
   // 既存ユーザーがアップデートした直後は「更新しました」画面を出す
   if (updateInfo) {
     app.innerHTML = renderUpdateScreen();
@@ -524,6 +530,38 @@ function agreeTerms() {
 }
 function viewTerms()  { showTermsView = true;  render(); }
 function closeTerms() { showTermsView = false; render(); }
+
+// ── 使い方ガイド ───────────────────────────────────────────────────────────────
+function renderHelp() {
+  return '<div class="main"><div class="terms-root"><div class="terms-inner">'
+    + '<div class="setup-header"><div class="setup-logo">Shift</div>'
+    + '<div class="setup-tagline">使い方ガイド</div></div>'
+    + '<div class="terms-card">'
+    + '<div class="terms-title">Shiftの使い方</div>'
+    + '<div class="terms-sub">「今だれがフロントにいるか」を記録して、みんなで分かちあうアプリです。</div>'
+    + '<div class="terms-scroll">'
+    + '<div class="terms-h">🪑 フロント</div>'
+    + '<p class="terms-p">今フロントにいる人格を記録します。交代したら、新しい人を選んで記録するだけ。いつ・だれがフロントにいたかの履歴が残るので、あとから振り返れます。</p>'
+    + '<div class="terms-h">✉️ メッセージ（申し送り）</div>'
+    + '<p class="terms-p">人格どうしでメモを残せます。「みんなへ」か「特定の人へ」を選んで送れます。引き継ぎや伝言、ひとことメモに使ってください。</p>'
+    + '<div class="terms-h">⚙️ 設定でできること</div>'
+    + '<ul class="terms-list">'
+    + '<li><strong>人格の追加・編集</strong>：名前・色・役割を登録できます。ID（英数字）は空欄でもOKです。</li>'
+    + '<li><strong>システム名</strong>：あなたたちの呼び名を変えられます。</li>'
+    + '<li><strong>Mosaicとの引き継ぎ</strong>：兄弟アプリMosaicと人格の情報を行き来できます（下記）。</li>'
+    + '</ul>'
+    + '<div class="terms-h">🔄 Mosaicと人格を引き継ぐ</div>'
+    + '<p class="terms-p">MosaicとShiftは別々のアプリなので、データは自動では共有されません。設定の「Mosaicへ引き継ぐ／Mosaicから取り込む」で<strong>引き継ぎコード</strong>をコピー＆貼り付けすると、人格リストをまるごと移せます。はじめての画面でも取り込めます。</p>'
+    + '<div class="terms-h">🔒 データについて</div>'
+    + '<p class="terms-p">記録はすべてこの端末の中だけに保存されます。サーバーには送りません。アプリやブラウザのデータを消すと記録も消えるので、大切な内容は別にも控えておいてください。</p>'
+    + '</div>'
+    + '<button class="btn-primary" style="margin-top:16px" onclick="closeHelp()">閉じる</button>'
+    + '</div>'
+    + '<div class="setup-note">いつでも設定から開けます</div>'
+    + '</div></div></div>';
+}
+function openHelp()  { showHelpView = true;  render(); }
+function closeHelp() { showHelpView = false; render(); }
 
 // ── Update notice ─────────────────────────────────────────────────────────────
 // 前回開いたときのバージョンと比べて、更新されていれば updateInfo をセット
@@ -1212,6 +1250,11 @@ function renderSettings() {
     + '<div class="settings-desc">Shiftは「Ataraxia Works」がつくる道具のひとつです。過去のできごとや感情の記録には、兄弟アプリ「Mosaic」を使えます。</div>'
     + '<a class="btn-secondary" style="display:block;text-align:center;text-decoration:none;width:100%;margin-bottom:8px" href="https://mosaic.xdcyw.net" target="_blank" rel="noopener">Mosaic を開く →</a>'
     + '<a class="btn-ghost" style="display:block;text-align:center;text-decoration:none;width:100%" href="https://apps.xdcyw.net" target="_blank" rel="noopener">Ataraxia Works について</a>'
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">使い方</div>'
+    + '<div class="settings-desc">フロント記録・申し送り・引き継ぎのやり方を見られます。</div>'
+    + '<button class="btn-secondary" style="width:100%" onclick="openHelp()">使い方を見る</button>'
     + '</div>'
     + '<div class="card settings-section">'
     + '<div class="settings-label">プライバシーと規約</div>'
