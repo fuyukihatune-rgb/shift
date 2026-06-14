@@ -253,9 +253,9 @@ const APP_VERSION = '1.0.0';
 const VERSION_KEY = 'shift_version';
 // 今回のバージョンで新しくなったところ（アップデート画面に出ます）
 const WHATS_NEW = [
-  "フロントにいるアルターを記録・交代できるようにしました",
-  "アルター同士でメッセージ（申し送り）を送れるようにしました",
-  "Mosaicのアルター情報をそのまま引き継げるようにしました",
+  "フロントにいる人格を記録・交代できるようにしました",
+  "人格同士でメッセージ（申し送り）を送れるようにしました",
+  "Mosaicの人格情報をそのまま引き継げるようにしました",
   "ホーム画面に追加して、オフラインでも使えるようにしました",
 ];
 
@@ -477,10 +477,10 @@ function render() {
 // ── Terms / Privacy ───────────────────────────────────────────────────────────
 function renderTermsBody() {
   return '<div class="terms-h">このアプリについて</div>'
-    + '<p class="terms-p">Shift（シフト）は、システムのみんなが「今、誰がフロントにいるか」を記録し、アルター同士で申し送り（メッセージ）をするためのアプリです。Mosaicの兄弟アプリです。</p>'
+    + '<p class="terms-p">Shift（シフト）は、システムのみんなが「今、誰がフロントにいるか」を記録し、人格同士で申し送り（メッセージ）をするためのアプリです。Mosaicの兄弟アプリです。</p>'
     + '<div class="terms-h">あなたのデータについて</div>'
     + '<ul class="terms-list">'
-    + '<li>記録した内容やアルターの情報は、すべて<strong>この端末の中だけ</strong>に保存されます。</li>'
+    + '<li>記録した内容や人格の情報は、すべて<strong>この端末の中だけ</strong>に保存されます。</li>'
     + '<li>外部のサーバーには送りません。インターネット通信もしません。</li>'
     + '<li>だれか他の人に勝手に見られることはありません。</li>'
     + '<li>アプリやブラウザのデータを消すと、記録も消えます。大切な内容は別にも控えておいてください。</li>'
@@ -547,7 +547,7 @@ function renderUpdateScreen() {
     + '<div class="terms-h">新しくなったところ</div>'
     + '<ul class="terms-list">' + WHATS_NEW.map(function(x) { return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>'
     + '<div class="terms-h">データはそのままです</div>'
-    + '<p class="terms-p">これまでの記録やアルターの情報はそのまま残っています。安心して使ってください。</p>'
+    + '<p class="terms-p">これまでの記録や人格の情報はそのまま残っています。安心して使ってください。</p>'
     + '</div>'
     + '<button class="btn-primary" style="margin-top:16px" onclick="dismissUpdate()">続ける</button>'
     + '</div>'
@@ -572,9 +572,9 @@ function renderMosaicImport(md) {
     + '<div style="font-size:16px;font-weight:700;text-align:center;margin-bottom:16px">Mosaicのデータが見つかりました</div>'
     + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px">'
     + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">システム名</span><span class="stat-row-val">' + sysName + '</span></div>'
-    + '<div class="stat-row"><span class="stat-row-label">アルター数</span><span class="stat-row-val">' + alterCount + '人</span></div>'
+    + '<div class="stat-row"><span class="stat-row-label">人格数</span><span class="stat-row-val">' + alterCount + '人</span></div>'
     + '</div>'
-    + '<div class="field-desc">アルター情報をShiftに引き継いですぐ使いはじめられます。</div>'
+    + '<div class="field-desc">人格情報をShiftに引き継いですぐ使いはじめられます。</div>'
     + '<button class="btn-primary" style="margin-bottom:10px" onclick="importFromMosaic()">Mosaicから引き継ぐ</button>'
     + '<button class="btn-secondary" style="width:100%" onclick="skipImport()">新しく始める →</button>'
     + '</div>'
@@ -632,11 +632,11 @@ function renderSetup() {
     + '<div class="setup-tagline">DIDシステム向けのフロント管理・申し送りアプリ</div></div>'
     + '<div class="step-dots"><div class="step-dot"></div><div class="step-dot active"></div></div>'
     + '<div class="setup-card">'
-    + '<div class="field-label">最初のアルターをつくる</div>'
-    + '<div class="field-desc">今これを読んでいるあなた、または代表のアルターをひとり登録します。あとから増やせます。</div>'
+    + '<div class="field-label">最初の人格をつくる</div>'
+    + '<div class="field-desc">今これを読んでいるあなた、または代表の人格をひとり登録します。あとから増やせます。</div>'
     + '<div class="input-stack">'
     + '<input type="text" id="setup-altername" placeholder="名前（例：ホスト、守護者…）" value="' + escHtml(setupData.alterName) + '" maxlength="20" />'
-    + '<input type="text" id="setup-alterhandle" placeholder="ID（英数字、必須）" value="' + escHtml(setupData.alterHandle) + '" maxlength="20" />'
+    + '<input type="text" id="setup-alterhandle" placeholder="ID（英数字。空欄でもOK）" value="' + escHtml(setupData.alterHandle) + '" maxlength="20" />'
     + '<input type="text" id="setup-alterrole" placeholder="役割・メモ（任意）" value="' + escHtml(setupData.alterRole) + '" maxlength="40" />'
     + '</div>'
     + '<div class="color-label">カラー</div>'
@@ -648,7 +648,7 @@ function renderSetup() {
     + '<div class="btn-row">'
     + '<button class="btn-secondary" onclick="setupBack()">← 戻る</button>'
     + '<button class="btn-primary" id="setup-complete"'
-    + ((!setupData.alterName.trim() || !setupData.alterHandle.trim()) ? ' disabled' : '')
+    + (!setupData.alterName.trim() ? ' disabled' : '')
     + ' onclick="completeSetup()">はじめる</button>'
     + '</div>'
     + '</div>'
@@ -693,7 +693,7 @@ function bindSetup() {
 
 function updateSetupComplete() {
   var btn = document.getElementById('setup-complete');
-  if (btn) btn.disabled = !setupData.alterName.trim() || !setupData.alterHandle.trim();
+  if (btn) btn.disabled = !setupData.alterName.trim();
 }
 
 function selectSetupColor(c) {
@@ -717,7 +717,7 @@ function setupBack() {
 }
 
 function completeSetup() {
-  if (!setupData.alterName.trim() || !setupData.alterHandle.trim()) return;
+  if (!setupData.alterName.trim()) return;
   state = {
     initialized:    true,
     systemName:     setupData.systemName.trim(),
@@ -725,7 +725,7 @@ function completeSetup() {
     alters: [{
       id:        randomId(),
       name:      setupData.alterName.trim(),
-      handle:    setupData.alterHandle.trim(),
+      handle:    setupData.alterHandle.trim() || genHandle(setupData.alterName),
       color:     setupData.alterColor,
       role:      setupData.alterRole.trim(),
       createdAt: new Date().toISOString()
@@ -1121,11 +1121,11 @@ function renderSettings() {
     + installHtml
     + '<div class="card settings-section">'
     + '<div class="section-header" style="margin-bottom:10px">'
-    + '<div class="settings-label" style="margin-bottom:0">アルター管理</div>'
+    + '<div class="settings-label" style="margin-bottom:0">人格管理</div>'
     + '<button class="' + (showAlterForm && !editingAlterId ? 'btn-secondary' : 'btn-primary') + '" style="padding:7px 14px;font-size:13px;width:auto" onclick="toggleAlterForm()">'
     + (showAlterForm && !editingAlterId ? 'キャンセル' : '+ 追加') + '</button>'
     + '</div>'
-    + (state.linkedToMosaic ? '<div style="font-size:12px;color:var(--text-3);margin-bottom:10px;padding:8px 10px;background:var(--bg);border-radius:8px">🔗 Mosaicと連携中 — アルターの変更はMosaicにも反映されます</div>' : '')
+    + (state.linkedToMosaic ? '<div style="font-size:12px;color:var(--text-3);margin-bottom:10px;padding:8px 10px;background:var(--bg);border-radius:8px">🔗 Mosaicと連携中 — 人格の変更はMosaicにも反映されます</div>' : '')
     + (showAlterForm ? renderAlterForm() : '')
     + alterListHtml
     + '</div>'
@@ -1136,13 +1136,13 @@ function renderSettings() {
     + '</div>'
     + (state.linkedToMosaic ? '<div class="card settings-section">'
     + '<div class="settings-label">Mosaicとの連携</div>'
-    + '<div class="settings-desc">現在Mosaicのデータと連携しています。アルターの変更はMosaicにも反映されます。</div>'
+    + '<div class="settings-desc">現在Mosaicのデータと連携しています。人格の変更はMosaicにも反映されます。</div>'
     + '<button class="btn-ghost" onclick="unlinkMosaic()">連携を解除する</button>'
     + '</div>' : '')
     + '<div class="card settings-section">'
     + '<div class="settings-label">データについて</div>'
     + '<div class="settings-desc">データはこのデバイスにのみ保存されます。サーバーへの送信は一切行いません。</div>'
-    + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">アルター数</span><span class="stat-row-val">' + state.alters.length + '人</span></div>'
+    + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">人格数</span><span class="stat-row-val">' + state.alters.length + '人</span></div>'
     + '<div class="stat-row"><span class="stat-row-label">フロント記録</span><span class="stat-row-val">' + state.frontingLog.length + '件</span></div>'
     + '<div class="stat-row"><span class="stat-row-label">メッセージ</span><span class="stat-row-val">' + state.messages.length + '件</span></div>'
     + '</div>'
@@ -1192,10 +1192,10 @@ function renderSettings() {
 function renderAlterForm() {
   var isEdit = !!editingAlterId;
   return '<div class="card" style="margin-bottom:12px;background:var(--bg);border:1.5px solid var(--border)">'
-    + '<div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:12px">' + (isEdit ? 'アルターを編集' : '新しいアルター') + '</div>'
+    + '<div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:12px">' + (isEdit ? '人格を編集' : '新しい人格') + '</div>'
     + '<div class="input-stack">'
-    + '<input type="text" id="af-name" placeholder="名前（必須）" value="' + escHtml(alterFormData.name) + '" maxlength="20" oninput="onAfName(this.value)" />'
-    + '<input type="text" id="af-handle" placeholder="ID（英数字、必須）" value="' + escHtml(alterFormData.handle) + '" maxlength="20" oninput="onAfHandle(this)" />'
+    + '<input type="text" id="af-name" placeholder="名前" value="' + escHtml(alterFormData.name) + '" maxlength="20" oninput="onAfName(this.value)" />'
+    + '<input type="text" id="af-handle" placeholder="ID（英数字。空欄でもOK）" value="' + escHtml(alterFormData.handle) + '" maxlength="20" oninput="onAfHandle(this)" />'
     + '<input type="text" id="af-role" placeholder="役割・メモ（任意）" value="' + escHtml(alterFormData.role) + '" maxlength="40" oninput="alterFormData.role=this.value" />'
     + '</div>'
     + '<div class="color-label">カラー</div>'
@@ -1206,14 +1206,14 @@ function renderAlterForm() {
     + '</div>'
     + '<div class="btn-row">'
     + '<button class="btn-secondary" onclick="cancelAlterForm()">キャンセル</button>'
-    + '<button class="btn-primary" id="af-save"' + ((!alterFormData.name.trim() || !alterFormData.handle.trim()) ? ' disabled' : '') + ' onclick="saveAlter()">' + (isEdit ? '更新する' : '追加する') + '</button>'
+    + '<button class="btn-primary" id="af-save"' + (!alterFormData.name.trim() ? ' disabled' : '') + ' onclick="saveAlter()">' + (isEdit ? '更新する' : '追加する') + '</button>'
     + '</div></div>';
 }
 
 function onAfName(val) {
   alterFormData.name = val;
   var btn = document.getElementById('af-save');
-  if (btn) btn.disabled = !val.trim() || !alterFormData.handle.trim();
+  if (btn) btn.disabled = !val.trim();
 }
 
 function onAfHandle(input) {
@@ -1221,7 +1221,7 @@ function onAfHandle(input) {
   input.value = v;
   alterFormData.handle = v;
   var btn = document.getElementById('af-save');
-  if (btn) btn.disabled = !alterFormData.name.trim() || !v.trim();
+  if (btn) btn.disabled = !alterFormData.name.trim();
 }
 
 function selectAlterColor(c) {
@@ -1254,16 +1254,17 @@ function startEditAlter(id) {
 }
 
 function saveAlter() {
-  if (!alterFormData.name.trim() || !alterFormData.handle.trim()) return;
+  if (!alterFormData.name.trim()) return;
   if (editingAlterId) {
+    var editHandle = alterFormData.handle.trim() || genHandle(alterFormData.name, editingAlterId);
     state.alters = state.alters.map(function(a) {
       return a.id === editingAlterId
-        ? Object.assign({}, a, { name: alterFormData.name.trim(), handle: alterFormData.handle.trim(), color: alterFormData.color, role: alterFormData.role.trim() })
+        ? Object.assign({}, a, { name: alterFormData.name.trim(), handle: editHandle, color: alterFormData.color, role: alterFormData.role.trim() })
         : a;
     });
     editingAlterId = null;
   } else {
-    state.alters.push({ id: randomId(), name: alterFormData.name.trim(), handle: alterFormData.handle.trim(), color: alterFormData.color, role: alterFormData.role.trim(), createdAt: new Date().toISOString() });
+    state.alters.push({ id: randomId(), name: alterFormData.name.trim(), handle: alterFormData.handle.trim() || genHandle(alterFormData.name), color: alterFormData.color, role: alterFormData.role.trim(), createdAt: new Date().toISOString() });
   }
   showAlterForm = false;
   alterFormData = { name: '', handle: '', color: PALETTE[0], role: '' };
@@ -1274,9 +1275,9 @@ function saveAlter() {
 }
 
 function deleteAlter(id) {
-  if (state.alters.length <= 1) { showToast('アルターは最低1人必要です'); return; }
+  if (state.alters.length <= 1) { showToast('人格は最低1人必要です'); return; }
   var a = state.alters.find(function(x) { return x.id === id; });
-  if (!confirm((a ? a.name : 'このアルター') + ' を削除しますか？')) return;
+  if (!confirm((a ? a.name : 'この人格') + ' を削除しますか？')) return;
   state.alters = state.alters.filter(function(x) { return x.id !== id; });
   saveState();
   if (state.linkedToMosaic) syncToMosaic();
