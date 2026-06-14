@@ -309,6 +309,7 @@ let msgToAlterId        = 'all';
 let showTermsView       = false; // 設定から規約を読み返すとき true
 let updateInfo          = null;  // 既存ユーザーが更新したとき { from, to } が入る
 let importDismissed     = false; // Mosaicインポートで「新しく始める」を選んだら true
+let showCodeImport      = false; // 初期起動でコード取り込み画面を出しているとき true
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 function randomId() {
@@ -450,8 +451,13 @@ function render() {
     return;
   }
 
-  // 未初期化：Mosaicのデータがあればインポート確認、なければ初期設定へ
+  // 未初期化：①コード取り込み画面 ②同じ端末にMosaicデータがあれば確認 ③初期設定
   if (!state.initialized) {
+    if (showCodeImport) {
+      app.innerHTML = renderCodeImport();
+      bindCodeImport();
+      return;
+    }
     if (!importDismissed) {
       try {
         const mraw = localStorage.getItem(MOSAIC_KEY);
@@ -531,7 +537,11 @@ function checkVersion() {
     // バージョン記録が無いが、すでにデータがある人（初回だけ案内）
     updateInfo = { from: null, to: APP_VERSION };
   }
-  try { localStorage.setItem(VERSION_KEY, APP_VERSION); } catch {}
+  // 更新案内を出すときは、ユーザーが「続ける」を押すまでバージョンを記録しない。
+  // （直後にSW切り替えのリロードが入っても、案内が一瞬で消えないように）
+  if (!updateInfo) {
+    try { localStorage.setItem(VERSION_KEY, APP_VERSION); } catch {}
+  }
 }
 
 function renderUpdateScreen() {
@@ -556,6 +566,8 @@ function renderUpdateScreen() {
 }
 
 function dismissUpdate() {
+  // ここで初めて新バージョンを記録する（案内を読み終えた合図）
+  try { localStorage.setItem(VERSION_KEY, APP_VERSION); } catch {}
   updateInfo = null;
   render();
 }
@@ -610,6 +622,40 @@ function skipImport() {
   render();
 }
 
+// ── 初期起動：引き継ぎコードで取り込む ─────────────────────────────────────────────
+function renderCodeImport() {
+  return '<div class="main"><div class="setup-root"><div class="setup-inner">'
+    + '<div class="setup-header"><div class="setup-logo">Shift</div>'
+    + '<div class="setup-tagline">DIDシステム向けのフロント管理・申し送りアプリ</div></div>'
+    + '<div class="setup-card">'
+    + '<div class="field-label">Mosaicから引き継ぐ</div>'
+    + '<div class="field-desc">兄弟アプリ「Mosaic」の設定 →「Shiftへ引き継ぐ」でコピーした<strong>引き継ぎコード</strong>を、下に貼り付けてください。人格の情報をそのまま引き継げます。</div>'
+    + '<textarea id="first-import-code" style="width:100%;min-height:88px;margin:4px 0 12px;font-size:12px;font-family:monospace;border:1px solid var(--border);border-radius:12px;padding:10px 12px;resize:vertical;color:var(--text);background:var(--bg)" placeholder="引き継ぎコードをここに貼り付け"></textarea>'
+    + '<button class="btn-primary" onclick="doCodeImport()">取り込んで始める</button>'
+    + '<button class="btn-secondary" style="width:100%;margin-top:8px" onclick="closeCodeImport()">← 戻る</button>'
+    + '</div>'
+    + '<div class="setup-note">データはこのデバイスにのみ保存されます</div>'
+    + '</div></div></div>';
+}
+function bindCodeImport() {
+  var t = document.getElementById('first-import-code');
+  if (t) t.focus();
+}
+function openCodeImport()  { showCodeImport = true;  render(); }
+function closeCodeImport() { showCodeImport = false; render(); }
+function doCodeImport() {
+  var inp = document.getElementById('first-import-code');
+  var payload = parseLinkCode(inp ? inp.value.trim() : '');
+  if (!payload) return;
+  applyLinkPayload(payload);
+  state.initialized = true;
+  saveState();
+  showCodeImport = false;
+  currentTab = 'front';
+  render();
+  showToast(state.alters.length + '人格を取り込みました');
+}
+
 // ── Setup ─────────────────────────────────────────────────────────────────────
 function renderSetup() {
   if (setupStep === 1) {
@@ -623,6 +669,9 @@ function renderSetup() {
       + '<input type="text" id="setup-sysname" placeholder="例：桜システム、私たち…" value="' + escHtml(setupData.systemName) + '" maxlength="30" />'
       + '<button class="btn-primary" id="setup-next" style="margin-top:18px"'
       + (setupData.systemName.trim() ? '' : ' disabled') + ' onclick="setupNext()">次へ →</button>'
+      + '<div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-light)">'
+      + '<a href="#" onclick="openCodeImport();return false" style="font-size:12.5px;color:var(--text-3);text-decoration:none;line-height:1.7">すでにMosaicを使っている方は、<br>引き継ぎコードで人格を取り込めます →</a>'
+      + '</div>'
       + '</div>'
       + '<div class="setup-note">データはこのデバイスにのみ保存されます</div>'
       + '</div></div></div>';
@@ -1147,6 +1196,12 @@ function renderSettings() {
     + '<div class="stat-row"><span class="stat-row-label">メッセージ</span><span class="stat-row-val">' + state.messages.length + '件</span></div>'
     + '</div>'
     + '<div class="card settings-section">'
+    + '<div class="settings-label">Mosaicへ引き継ぐ</div>'
+    + '<div class="settings-desc">今の人格リストを兄弟アプリ「Mosaic」へ引き継げます。下のコードをコピーして、Mosaicの設定 →「Shiftから取り込む」に貼り付けてください。</div>'
+    + '<div class="eth-box" id="export-code">' + escHtml(buildExportCode()) + '</div>'
+    + '<button class="btn-secondary" style="width:100%" onclick="copyExportCode()">引き継ぎコードをコピー</button>'
+    + '</div>'
+    + '<div class="card settings-section">'
     + '<div class="settings-label">Mosaicから取り込む</div>'
     + '<div class="settings-desc">兄弟アプリ「Mosaic」の設定 →「Shiftへ引き継ぐ」でコードをコピーして、下に貼り付けてください。</div>'
     + '<textarea id="mosaic-import-code" style="width:100%;min-height:72px;margin:10px 0;font-size:12px;font-family:monospace;border:1px solid var(--border);border-radius:8px;padding:8px 10px;resize:vertical;color:var(--text);background:var(--bg)" placeholder="引き継ぎコードをここに貼り付け"></textarea>'
@@ -1315,32 +1370,60 @@ function unlinkMosaic() {
   showToast('連携を解除しました');
 }
 
+// ── Mosaic連携（引き継ぎコードの読み書き） ───────────────────────────────────────
+function encodeLink(str) {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(_, h) { return String.fromCharCode(parseInt(h, 16)); }));
+}
 function decodeLink(str) {
   try {
-    return decodeURIComponent(Array.from(atob(str), c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
+    return decodeURIComponent(Array.from(atob(str), function(c) { return '%' + c.charCodeAt(0).toString(16).padStart(2, '0'); }).join(''));
   } catch { return null; }
 }
-function importFromCode() {
-  var inp = document.getElementById('mosaic-import-code');
-  var raw = (inp ? inp.value.trim() : '');
-  if (!raw) { showToast('コードを貼り付けてください'); return; }
+// 自分の人格リストを引き継ぎコード（base64）にする → Mosaic側で取り込める
+function buildExportCode() {
+  var payload = { app: 'mosaic-shift-link', v: 1, systemName: state.systemName,
+    alters: state.alters.map(function(a) { return { id: a.id, name: a.name, handle: a.handle, color: a.color, role: a.role || '' }; }) };
+  try { return encodeLink(JSON.stringify(payload)); } catch { return ''; }
+}
+function copyExportCode() {
+  var code = (document.getElementById('export-code') || {}).textContent || '';
+  var done = function() { showToast('引き継ぎコードをコピーしました'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(done).catch(function() { fallbackCopy(code, done); });
+  } else { fallbackCopy(code, done); }
+}
+// 貼り付けられたコードを検証して payload を返す（だめなら toast を出して null）
+function parseLinkCode(raw) {
+  if (!raw) { showToast('コードを貼り付けてください'); return null; }
   var json = decodeLink(raw);
-  if (!json) { showToast('コードが正しくありません'); return; }
+  if (!json) { showToast('コードが正しくありません'); return null; }
   var payload;
-  try { payload = JSON.parse(json); } catch { showToast('コードが正しくありません'); return; }
-  if (!payload || payload.app !== 'mosaic-shift-link' || !Array.isArray(payload.alters)) {
-    showToast('Mosaicの引き継ぎコードではありません'); return;
+  try { payload = JSON.parse(json); } catch { showToast('コードが正しくありません'); return null; }
+  if (!payload || payload.app !== 'mosaic-shift-link' || !Array.isArray(payload.alters) || !payload.alters.length) {
+    showToast('引き継ぎコードではありません'); return null;
   }
-  if (!confirm('Mosaicの人格データ（' + payload.alters.length + '人格）を取り込みます。現在のShiftの人格リストは上書きされます。続けますか？')) return;
+  return payload;
+}
+// payload の人格リストを state に反映（コードは一度きりのコピー＝連携状態にはしない）
+function applyLinkPayload(payload) {
   state.alters = payload.alters.map(function(a) {
-    return { id: a.id || genId(), name: a.name || '名前なし', handle: a.handle || genHandle(a.name || '名前なし'), color: a.color || PALETTE[0], role: a.role || '' };
+    return { id: a.id || randomId(), name: a.name || '名前なし', handle: a.handle || genHandle(a.name || '名前なし'),
+             color: a.color || PALETTE[0], role: a.role || '', createdAt: new Date().toISOString() };
   });
   if (payload.systemName) state.systemName = payload.systemName;
-  state.linkedToMosaic = true;
+  state.linkedToMosaic = false;
   saveState();
+}
+// 設定画面からの取り込み（既存データは置きかえ）
+function importFromCode() {
+  var inp = document.getElementById('mosaic-import-code');
+  var payload = parseLinkCode(inp ? inp.value.trim() : '');
+  if (!payload) return;
+  if (!confirm('Mosaicの人格データ（' + payload.alters.length + '件）を取り込みます。今のShiftの人格リストは置きかえられます。続けますか？')) return;
+  applyLinkPayload(payload);
   if (inp) inp.value = '';
   refreshSettings();
-  showToast('Mosaicから ' + state.alters.length + '人格を取り込みました');
+  showToast(state.alters.length + '人格を取り込みました');
 }
 
 async function triggerInstall() {
