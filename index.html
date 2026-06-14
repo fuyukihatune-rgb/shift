@@ -1147,6 +1147,12 @@ function renderSettings() {
     + '<div class="stat-row"><span class="stat-row-label">メッセージ</span><span class="stat-row-val">' + state.messages.length + '件</span></div>'
     + '</div>'
     + '<div class="card settings-section">'
+    + '<div class="settings-label">Mosaicから取り込む</div>'
+    + '<div class="settings-desc">兄弟アプリ「Mosaic」の設定 →「Shiftへ引き継ぐ」でコードをコピーして、下に貼り付けてください。</div>'
+    + '<textarea id="mosaic-import-code" style="width:100%;min-height:72px;margin:10px 0;font-size:12px;font-family:monospace;border:1px solid var(--border);border-radius:8px;padding:8px 10px;resize:vertical;color:var(--text);background:var(--bg)" placeholder="引き継ぎコードをここに貼り付け"></textarea>'
+    + '<button class="btn-primary" style="width:100%" onclick="importFromCode()">取り込む</button>'
+    + '</div>'
+    + '<div class="card settings-section">'
     + '<div class="settings-label">プライバシーと規約</div>'
     + '<div class="settings-desc">最初に表示した「プライバシーと規約」をもう一度読めます。</div>'
     + '<button class="btn-secondary" style="width:100%" onclick="viewTerms()">プライバシーと規約を読む</button>'
@@ -1301,6 +1307,34 @@ function unlinkMosaic() {
   saveState();
   refreshSettings();
   showToast('連携を解除しました');
+}
+
+function decodeLink(str) {
+  try {
+    return decodeURIComponent(Array.from(atob(str), c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
+  } catch { return null; }
+}
+function importFromCode() {
+  var inp = document.getElementById('mosaic-import-code');
+  var raw = (inp ? inp.value.trim() : '');
+  if (!raw) { showToast('コードを貼り付けてください'); return; }
+  var json = decodeLink(raw);
+  if (!json) { showToast('コードが正しくありません'); return; }
+  var payload;
+  try { payload = JSON.parse(json); } catch { showToast('コードが正しくありません'); return; }
+  if (!payload || payload.app !== 'mosaic-shift-link' || !Array.isArray(payload.alters)) {
+    showToast('Mosaicの引き継ぎコードではありません'); return;
+  }
+  if (!confirm('Mosaicの人格データ（' + payload.alters.length + '人格）を取り込みます。現在のShiftの人格リストは上書きされます。続けますか？')) return;
+  state.alters = payload.alters.map(function(a) {
+    return { id: a.id || genId(), name: a.name || '名前なし', handle: a.handle || genHandle(a.name || '名前なし'), color: a.color || PALETTE[0], role: a.role || '' };
+  });
+  if (payload.systemName) state.systemName = payload.systemName;
+  state.linkedToMosaic = true;
+  saveState();
+  if (inp) inp.value = '';
+  refreshSettings();
+  showToast('Mosaicから ' + state.alters.length + '人格を取り込みました');
 }
 
 async function triggerInstall() {
