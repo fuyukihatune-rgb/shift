@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Shift</title>
+  <meta name="description" content="DIDシステム向けのフロント管理・申し送りアプリ" />
+  <meta name="theme-color" content="#1a1a1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Shift" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f9f9f9;
+      --surface: #ffffff;
+      --border: #e8e8e8;
+      --border-light: #f2f2f2;
+      --text: #1a1a1a;
+      --text-2: #555;
+      --text-3: #888;
+      --text-4: #bbb;
+      --text-5: #ddd;
+      --accent: #1a1a1a;
+      --accent-strong: #1a1a1a;
+      --accent-soft: #f0f0f0;
+      --shadow: 0 1px 2px rgba(0,0,0,0.03), 0 3px 10px rgba(0,0,0,0.04);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, "Helvetica Neue", "Noto Sans JP", sans-serif; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; touch-action: pan-x pan-y; }
+    #app { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Nav ── */
+    .nav {
+      background: rgba(255,255,255,0.82); backdrop-filter: saturate(180%) blur(12px); -webkit-backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px; padding-top: var(--safe-top);
+      display: flex; align-items: center; gap: 4px;
+      height: calc(52px + var(--safe-top));
+      position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+    }
+    .nav-title { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; margin-right: 8px; white-space: nowrap; flex-shrink: 0; color: var(--accent-strong); }
+    .nav-tabs { display: flex; overflow-x: auto; scrollbar-width: none; flex: 1; gap: 2px; }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+    .nav-tab { position: relative; background: none; border: none; padding: 0 12px; height: 52px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-3); white-space: nowrap; transition: color 0.15s; flex-shrink: 0; }
+    .nav-tab.active { color: var(--accent-strong); font-weight: 700; }
+    .nav-tab.active::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: linear-gradient(90deg, var(--accent-strong), var(--accent)); }
+
+    /* ── Main scroll ── */
+    .main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .content { max-width: 680px; margin: 0 auto; padding: 16px 14px; padding-bottom: calc(24px + var(--safe-bottom)); }
+
+    /* ── Tab panels ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px; margin-bottom: 12px; box-shadow: var(--shadow); }
+    .card.accent { border-left-width: 4px; }
+
+    /* ── Setup ── */
+    .setup-root { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .setup-inner { width: 100%; max-width: 400px; }
+    .setup-header { text-align: center; margin-bottom: 32px; }
+    .setup-logo { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 6px; color: var(--accent-strong); }
+    .setup-tagline { font-size: 13px; color: var(--text-3); }
+    .step-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; }
+    .step-dot { width: 28px; height: 4px; border-radius: 2px; background: var(--text-5); transition: background 0.2s; }
+    .step-dot.active { background: var(--accent); }
+    .setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 24px; box-shadow: var(--shadow); }
+    .setup-note { text-align: center; margin-top: 14px; font-size: 11px; color: var(--text-4); }
+
+    /* ── Form elements ── */
+    .field-label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .field-desc { font-size: 13px; color: var(--text-3); line-height: 1.65; margin-bottom: 16px; }
+    input[type="text"], textarea, select {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 11px 14px; font-size: 16px; color: var(--text);
+      background: #faf9fd; outline: none; font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    input[type="text"]:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+    textarea { resize: vertical; line-height: 1.65; }
+    .input-stack { display: flex; flex-direction: column; gap: 10px; }
+    .color-label { font-size: 12px; color: var(--text-3); margin-bottom: 8px; margin-top: 14px; }
+    .color-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .color-dot {
+      width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+      border: 3px solid transparent; transition: transform 0.1s, border-color 0.1s; flex-shrink: 0;
+    }
+    .color-dot.selected { border-color: #fff; box-shadow: 0 0 0 2.5px var(--text); transform: scale(1.05); }
+
+    /* ── Buttons ── */
+    .btn-primary { background: var(--text); color: #fff; border: none; border-radius: 12px; padding: 12px 18px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; transition: transform 0.1s, opacity 0.15s; }
+    .btn-primary:active { transform: translateY(1px); }
+    .btn-primary:disabled { background: var(--text-5); color: #fff; box-shadow: none; cursor: default; }
+    .btn-secondary { background: var(--accent-soft); color: var(--accent-strong); border: none; border-radius: 12px; padding: 12px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .btn-secondary:active { background: #e4e4e4; }
+    .btn-ghost { background: none; border: 1.5px solid var(--border); border-radius: 999px; padding: 6px 14px; font-size: 12px; color: var(--text-3); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    .btn-ghost:active { border-color: var(--accent); color: var(--accent-strong); }
+    .btn-danger { background: none; border: 1.5px solid #f3c6cf; border-radius: 12px; padding: 12px; font-size: 13px; font-weight: 600; color: #d4607a; cursor: pointer; width: 100%; }
+    .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-row .btn-primary, .btn-row .btn-secondary { flex: 1; }
+
+    /* ── Pill filters ── */
+    .pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      border: 1.5px solid var(--border); border-radius: 999px;
+      padding: 6px 13px; font-size: 12px; color: var(--text-3);
+      background: var(--surface); cursor: pointer; transition: all 0.12s;
+      white-space: nowrap;
+    }
+    .pill.active { font-weight: 700; }
+    .pill:active { transform: scale(0.96); }
+    .pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Avatar ── */
+    .avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; flex-shrink: 0; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* ── Post header (shared) ── */
+    .post-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+    .post-meta { flex: 1; min-width: 0; }
+    .post-meta-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+    .alter-name { font-size: 13px; font-weight: 600; }
+    .alter-handle { font-size: 12px; color: var(--text-4); }
+    .post-time { font-size: 11px; color: var(--text-4); white-space: nowrap; flex-shrink: 0; }
+    .post-footer { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-light); }
+    .action-btn { background: none; border: none; font-size: 11px; color: var(--text-4); cursor: pointer; padding: 0; min-height: 44px; }
+
+    /* ── Alter cards ── */
+    .alter-card-row { display: flex; align-items: center; gap: 14px; }
+    .alter-info { flex: 1; min-width: 0; }
+    .alter-card-name { font-size: 14px; font-weight: 600; }
+    .alter-card-handle { font-size: 12px; color: var(--text-4); margin-top: 1px; }
+    .alter-card-role { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .alter-card-count { font-size: 11px; color: var(--text-4); margin-top: 3px; }
+    .alter-card-btns { display: flex; flex-direction: column; gap: 6px; }
+
+    /* ── Settings ── */
+    .settings-section { margin-bottom: 12px; }
+    .settings-label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+    .settings-desc { font-size: 13px; color: var(--text-3); line-height: 1.65; margin-bottom: 12px; }
+    .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--border-light); font-size: 13px; }
+    .stat-row-label { color: var(--text-3); }
+    .stat-row-val { font-weight: 600; }
+
+    /* ── Install section ── */
+    .install-section { background: var(--text); color: #fff; border-radius: 16px; padding: 20px; margin-bottom: 12px; }
+    .install-section-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .install-section-desc { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.6; margin-bottom: 14px; }
+    .install-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .install-step { display: flex; gap: 10px; align-items: flex-start; }
+    .install-step-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .install-step-text { font-size: 13px; color: rgba(255,255,255,0.92); line-height: 1.5; }
+    .install-step-text strong { color: #fff; }
+    .install-big-btn { background: #fff; color: var(--accent-strong); border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; }
+
+    /* ── Section header ── */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .section-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+
+    /* ── Empty ── */
+    .empty { text-align: center; padding: 48px 0; color: var(--text-4); font-size: 14px; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: calc(20px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 11px 22px; border-radius: 999px; font-size: 13px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.25); opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1100; white-space: nowrap; max-width: 88vw; overflow: hidden; text-overflow: ellipsis; }
+    .toast.show { opacity: 1; }
+
+    /* ── Front tab ── */
+    .front-current { display: flex; flex-direction: column; align-items: center; padding: 20px 0 4px; }
+    .front-name-large { font-size: 22px; font-weight: 800; margin-top: 12px; letter-spacing: -0.02em; }
+    .front-handle-line { font-size: 13px; color: var(--text-4); margin-top: 2px; }
+    .front-since { font-size: 13px; color: var(--text-3); margin-top: 6px; }
+    .front-change-panel { border-top: 1px solid var(--border-light); margin-top: 16px; padding-top: 16px; }
+    .front-change-label { font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 10px; }
+    .history-time-row { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+    .history-memo { font-size: 13px; color: var(--text-2); margin-top: 4px; font-style: italic; }
+
+    /* ── Messages tab ── */
+    .compose-textarea {
+      width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+      padding: 11px 14px; font-size: 16px; line-height: 1.65; background: #faf9fd;
+      min-height: 80px; color: var(--text); font-family: inherit; outline: none; resize: vertical;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .compose-textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px var(--accent-soft); }
+    .compose-footer { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light); flex-wrap: wrap; }
+    .char-count { font-size: 11px; color: var(--text-4); }
+    .char-count.warn { color: #d4607a; }
+    .post-btn { margin-left: auto; background: var(--text); color: #fff; border: none; border-radius: 999px; padding: 9px 22px; font-size: 13px; font-weight: 600; cursor: pointer; transition: transform 0.1s; min-height: 44px; }
+    .post-btn:active { transform: translateY(1px); }
+    .post-btn:disabled { background: var(--text-5); cursor: default; }
+    .msg-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+    .msg-meta { flex: 1; min-width: 0; }
+    .msg-route { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .msg-body { font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+    .msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-light); }
+    .new-badge { font-size: 10px; font-weight: 700; color: #fff; border-radius: 4px; padding: 2px 6px; display: inline-block; }
+    .msg-section-head { font-size: 12px; font-weight: 600; color: var(--text-3); margin: 16px 0 8px; letter-spacing: 0.03em; padding-bottom: 4px; border-bottom: 1px solid var(--border-light); }
+    .unread-badge { display: inline-block; font-size: 9px; background: var(--text); color: #fff; border-radius: 4px; padding: 1px 4px; vertical-align: super; line-height: 1.4; }
+
+    /* ── Terms / Privacy ── */
+    .terms-root { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .terms-inner { width: 100%; max-width: 440px; }
+    .terms-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 22px; box-shadow: var(--shadow); }
+    .terms-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .terms-sub { font-size: 13px; color: var(--text-3); margin-bottom: 18px; }
+    .terms-scroll { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border-light); border-radius: 12px; padding: 14px; background: #fafafa; }
+    .terms-h { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+    .terms-h:first-child { margin-top: 0; }
+    .terms-p { font-size: 13px; line-height: 1.8; color: var(--text-2); }
+    .terms-list { font-size: 13px; line-height: 1.8; color: var(--text-2); padding-left: 18px; }
+
+    /* ── Developer / Donation ── */
+    .dev-msg { font-size: 13px; color: var(--text-2); line-height: 1.7; margin-bottom: 12px; }
+    .dev-links { display: flex; flex-direction: column; gap: 8px; }
+    .dev-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); text-decoration: none; border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; }
+    .eth-box { background: #fafafa; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 12px; font-family: ui-monospace, "SF Mono", Menlo, monospace; word-break: break-all; line-height: 1.6; color: var(--text-2); margin-bottom: 10px; }
+    .donate-block { margin-bottom: 16px; }
+    .donate-block:last-of-type { margin-bottom: 0; }
+    .donate-label { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 400px) {
+      .content { padding: 14px 12px; }
+      .card { padding: 14px 15px; }
+      .nav-tab { padding: 0 10px; font-size: 12.5px; }
+    }
+    @media (max-width: 340px) {
+      .nav-title { font-size: 15px; }
+      .pill { padding: 5px 11px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────────────────
+const PALETTE = ["#4f7cac","#7a6a9a","#c97b5a","#4a9a7a","#c0704a","#6a7a9a","#9a7a4a","#7a4a6a","#4a7a9a","#9a4a4a"];
+const STORAGE_KEY = 'shift_v1';
+const MOSAIC_KEY  = 'mosaic_v1';
+
+// ── アプリのバージョン ────────────────────────────────────────────────────────
+// 更新するたびに数字を上げる。sw.js の CACHE_NAME も合わせて変えること。
+const APP_VERSION = '1.0.0';
+const VERSION_KEY = 'shift_version';
+// 今回のバージョンで新しくなったところ（アップデート画面に出ます）
+const WHATS_NEW = [
+  "フロントにいるアルターを記録・交代できるようにしました",
+  "アルター同士でメッセージ（申し送り）を送れるようにしました",
+  "Mosaicのアルター情報をそのまま引き継げるようにしました",
+  "ホーム画面に追加して、オフラインでも使えるようにしました",
+];
+
+// 規約・プライバシーの内容を変えたら数字を1つ増やすと、もう一度同意画面が出ます
+const TERMS_VERSION = 1;
+
+// ── 開発者情報・寄付設定 ──────────────────────────────────────────────────────
+// ↓↓↓ ここを自分の情報に書き換えてください ↓↓↓
+const DEV_INFO = {
+  name: "田中志（たなかしるす）",
+  message: "このアプリは個人が作っています。やさしい気持ちで使ってもらえたら嬉しいです。",
+  links: [
+    { label: "X（Twitter）", url: "https://x.com/Sirusu_Tanaka" },
+  ],
+};
+// 寄付を受け取るアドレス。address が空のものは画面に表示されません。
+const DONATIONS = [
+  { key: "btc", label: "ビットコイン（BTC）", address: "1EHshWSHyvJFjkAYQ5rPX7nKo2FRKWF58f" },
+  { key: "eth", label: "イーサリアム（ETH）", address: "0xb7da6af09c0f8db95d0c0e352e32d1915483931e" },
+];
+// ↑↑↑ ここまで ↑↑↑
+function activeDonations() {
+  return DONATIONS.filter(function(d) { return d.address && d.address.trim(); });
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let state = {
+  initialized: false,
+  systemName: '',
+  linkedToMosaic: false,
+  alters: [],
+  frontingLog: [],
+  messages: [],
+  agreedTermsVersion: 0,
+};
+
+// ── UI State ─────────────────────────────────────────────────────────────────
+let currentTab          = 'front';
+let showFrontChangePanel = false;
+let frontChangeAlterId  = null;
+let msgFilter           = 'all'; // 'all' | 'mine' | 'sent'
+let showAlterForm       = false;
+let editingAlterId      = null;
+let alterFormData       = { name: '', handle: '', color: PALETTE[0], role: '' };
+let setupStep           = 1;
+let setupData           = { systemName: '', alterName: '', alterHandle: '', alterColor: PALETTE[0], alterRole: '' };
+let deferredPrompt      = null;
+let msgContent          = '';
+let msgFromAlterId      = null;
+let msgToAlterId        = 'all';
+let showTermsView       = false; // 設定から規約を読み返すとき true
+let updateInfo          = null;  // 既存ユーザーが更新したとき { from, to } が入る
+let importDismissed     = false; // Mosaicインポートで「新しく始める」を選んだら true
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function randomId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function timeAgo(date) {
+  const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (diff < 60)    return diff + '秒前';
+  if (diff < 3600)  return Math.floor(diff / 60) + '分前';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間前';
+  return Math.floor(diff / 86400) + '日前';
+}
+
+function duration(startedAt, endedAt) {
+  const ms  = new Date(endedAt || Date.now()) - new Date(startedAt);
+  const min = Math.floor(ms / 60000);
+  if (min < 1)  return '1分未満';
+  if (min < 60) return '約' + min + '分';
+  return '約' + Math.floor(min / 60) + '時間';
+}
+
+function formatDate(date) {
+  const d = new Date(date);
+  return d.getFullYear() + '/'
+    + String(d.getMonth() + 1).padStart(2, '0') + '/'
+    + String(d.getDate()).padStart(2, '0') + ' '
+    + String(d.getHours()).padStart(2, '0') + ':'
+    + String(d.getMinutes()).padStart(2, '0');
+}
+
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function genHandle(name, excludeId) {
+  let base = String(name || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (!base) base = 'member';
+  const used = new Set(state.alters.filter(a => a.id !== excludeId).map(a => a.handle));
+  if (!used.has(base)) return base;
+  let n = 2;
+  while (used.has(base + n)) n++;
+  return base + n;
+}
+
+// ── Storage ──────────────────────────────────────────────────────────────────
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
+
+function syncToMosaic() {
+  if (!state.linkedToMosaic) return;
+  try {
+    const raw = localStorage.getItem(MOSAIC_KEY);
+    if (!raw) return;
+    const md = JSON.parse(raw);
+    md.alters     = state.alters;
+    md.systemName = state.systemName;
+    localStorage.setItem(MOSAIC_KEY, JSON.stringify(md));
+  } catch {}
+}
+
+// ── Avatar ───────────────────────────────────────────────────────────────────
+function avatarHTML(alter, size) {
+  size = size || 36;
+  return '<div class="avatar" style="width:' + size + 'px;height:' + size + 'px;background:' + alter.color
+    + ';font-size:' + Math.round(size * 0.38) + 'px">'
+    + escHtml((alter.name || '?').slice(0, 1)) + '</div>';
+}
+
+// ── Derived helpers ───────────────────────────────────────────────────────────
+function currentFrontLog()   { return state.frontingLog[0] || null; }
+function currentFrontAlter() {
+  const log = currentFrontLog();
+  return log ? (state.alters.find(a => a.id === log.alterId) || null) : null;
+}
+function currentFrontAlterId() {
+  const log = currentFrontLog();
+  if (log) return log.alterId;
+  return state.alters[0] ? state.alters[0].id : null;
+}
+
+function unreadCount() {
+  const fid = currentFrontAlterId();
+  return state.messages.filter(m => !m.read && (m.toAlterId === 'all' || m.toAlterId === fid)).length;
+}
+
+// ── PWA ──────────────────────────────────────────────────────────────────────
+function isIOS()             { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+function isInStandaloneMode(){ return window.matchMedia('(display-mode: standalone)').matches || !!window.navigator.standalone; }
+
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (currentTab === 'settings') refreshSettings();
+});
+window.addEventListener('appinstalled', function() {
+  deferredPrompt = null;
+  showToast('ホーム画面に追加しました');
+  if (currentTab === 'settings') refreshSettings();
+});
+
+// ── Root render ───────────────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+
+  // 初回起動：まだ規約に同意していなければ規約画面を出す
+  if ((state.agreedTermsVersion || 0) < TERMS_VERSION) {
+    app.innerHTML = renderTerms(false);
+    return;
+  }
+  // 設定からあとで読み返すとき
+  if (showTermsView) {
+    app.innerHTML = renderTerms(true);
+    return;
+  }
+  // 既存ユーザーがアップデートした直後は「更新しました」画面を出す
+  if (updateInfo) {
+    app.innerHTML = renderUpdateScreen();
+    return;
+  }
+
+  // 未初期化：Mosaicのデータがあればインポート確認、なければ初期設定へ
+  if (!state.initialized) {
+    if (!importDismissed) {
+      try {
+        const mraw = localStorage.getItem(MOSAIC_KEY);
+        if (mraw) {
+          const md = JSON.parse(mraw);
+          if (md && md.alters && md.alters.length) {
+            app.innerHTML = renderMosaicImport(md);
+            return;
+          }
+        }
+      } catch {}
+    }
+    app.innerHTML = renderSetup();
+    bindSetup();
+    return;
+  }
+
+  app.innerHTML = renderApp();
+  bindApp();
+  switchTab(currentTab);
+}
+
+// ── Terms / Privacy ───────────────────────────────────────────────────────────
+function renderTermsBody() {
+  return '<div class="terms-h">このアプリについて</div>'
+    + '<p class="terms-p">Shift（シフト）は、システムのみんなが「今、誰がフロントにいるか」を記録し、アルター同士で申し送り（メッセージ）をするためのアプリです。Mosaicの兄弟アプリです。</p>'
+    + '<div class="terms-h">あなたのデータについて</div>'
+    + '<ul class="terms-list">'
+    + '<li>記録した内容やアルターの情報は、すべて<strong>この端末の中だけ</strong>に保存されます。</li>'
+    + '<li>外部のサーバーには送りません。インターネット通信もしません。</li>'
+    + '<li>だれか他の人に勝手に見られることはありません。</li>'
+    + '<li>アプリやブラウザのデータを消すと、記録も消えます。大切な内容は別にも控えておいてください。</li>'
+    + '</ul>'
+    + '<div class="terms-h">使うときのお願い</div>'
+    + '<ul class="terms-list">'
+    + '<li>このアプリは<strong>医療の道具ではありません</strong>。診断や治療の代わりにはなりません。</li>'
+    + '<li>つらいときは、信頼できる人や専門の窓口にも頼ってください。</li>'
+    + '<li>このアプリを使ったことで起きたことについて、作者は責任を負えないことをご理解ください。</li>'
+    + '</ul>'
+    + '<div class="terms-h">無料です</div>'
+    + '<p class="terms-p">このアプリは無料で使えます。応援したい人だけ、設定画面から寄付ができます（任意です）。</p>';
+}
+
+function renderTerms(viewOnly) {
+  return '<div class="main"><div class="terms-root"><div class="terms-inner">'
+    + '<div class="setup-header"><div class="setup-logo">Shift</div>'
+    + '<div class="setup-tagline">はじめる前に読んでください</div></div>'
+    + '<div class="terms-card">'
+    + '<div class="terms-title">プライバシーと規約</div>'
+    + '<div class="terms-sub">かんたんに言うと「データはこの端末の中だけ」です。</div>'
+    + '<div class="terms-scroll">' + renderTermsBody() + '</div>'
+    + (viewOnly
+        ? '<button class="btn-primary" style="margin-top:16px" onclick="closeTerms()">閉じる</button>'
+        : '<button class="btn-primary" style="margin-top:16px" onclick="agreeTerms()">読みました・同意して始める</button>')
+    + '</div>'
+    + '<div class="setup-note">同意すると、この内容に納得したことになります</div>'
+    + '</div></div></div>';
+}
+
+function agreeTerms() {
+  state.agreedTermsVersion = TERMS_VERSION;
+  saveState();
+  render();
+}
+function viewTerms()  { showTermsView = true;  render(); }
+function closeTerms() { showTermsView = false; render(); }
+
+// ── Update notice ─────────────────────────────────────────────────────────────
+// 前回開いたときのバージョンと比べて、更新されていれば updateInfo をセット
+function checkVersion() {
+  let prev = null;
+  try { prev = localStorage.getItem(VERSION_KEY); } catch {}
+  if (prev && prev !== APP_VERSION) {
+    // バージョンが変わった既存ユーザー
+    updateInfo = { from: prev, to: APP_VERSION };
+  } else if (!prev && state.initialized) {
+    // バージョン記録が無いが、すでにデータがある人（初回だけ案内）
+    updateInfo = { from: null, to: APP_VERSION };
+  }
+  try { localStorage.setItem(VERSION_KEY, APP_VERSION); } catch {}
+}
+
+function renderUpdateScreen() {
+  return '<div class="main"><div class="terms-root"><div class="terms-inner">'
+    + '<div class="setup-header"><div class="setup-logo">Shift</div>'
+    + '<div class="setup-tagline">アップデートしました 🎉</div></div>'
+    + '<div class="terms-card">'
+    + '<div class="terms-title">新しくなりました</div>'
+    + '<div class="terms-sub">' + (updateInfo.from
+        ? 'バージョン ' + escHtml(updateInfo.from) + ' → ' + escHtml(updateInfo.to)
+        : '最新版（' + escHtml(updateInfo.to) + '）になりました') + '</div>'
+    + '<div class="terms-scroll">'
+    + '<div class="terms-h">新しくなったところ</div>'
+    + '<ul class="terms-list">' + WHATS_NEW.map(function(x) { return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul>'
+    + '<div class="terms-h">データはそのままです</div>'
+    + '<p class="terms-p">これまでの記録やアルターの情報はそのまま残っています。安心して使ってください。</p>'
+    + '</div>'
+    + '<button class="btn-primary" style="margin-top:16px" onclick="dismissUpdate()">続ける</button>'
+    + '</div>'
+    + '<div class="setup-note">古いデータは自動で新しい形に引き継がれます</div>'
+    + '</div></div></div>';
+}
+
+function dismissUpdate() {
+  updateInfo = null;
+  render();
+}
+
+// ── Mosaic import screen ──────────────────────────────────────────────────────
+function renderMosaicImport(md) {
+  const sysName    = escHtml(md.systemName || 'システム');
+  const alterCount = (md.alters || []).length;
+  return '<div class="main"><div class="setup-root"><div class="setup-inner">'
+    + '<div class="setup-header"><div class="setup-logo">Shift</div>'
+    + '<div class="setup-tagline">DIDシステム向けのフロント管理・申し送りアプリ</div></div>'
+    + '<div class="setup-card">'
+    + '<div style="font-size:28px;text-align:center;margin-bottom:12px">🧩</div>'
+    + '<div style="font-size:16px;font-weight:700;text-align:center;margin-bottom:16px">Mosaicのデータが見つかりました</div>'
+    + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px">'
+    + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">システム名</span><span class="stat-row-val">' + sysName + '</span></div>'
+    + '<div class="stat-row"><span class="stat-row-label">アルター数</span><span class="stat-row-val">' + alterCount + '人</span></div>'
+    + '</div>'
+    + '<div class="field-desc">アルター情報をShiftに引き継いですぐ使いはじめられます。</div>'
+    + '<button class="btn-primary" style="margin-bottom:10px" onclick="importFromMosaic()">Mosaicから引き継ぐ</button>'
+    + '<button class="btn-secondary" style="width:100%" onclick="skipImport()">新しく始める →</button>'
+    + '</div>'
+    + '<div class="setup-note">データはこのデバイスにのみ保存されます</div>'
+    + '</div></div></div>';
+}
+
+function importFromMosaic() {
+  try {
+    const mraw = localStorage.getItem(MOSAIC_KEY);
+    if (!mraw) { skipImport(); return; }
+    const md = JSON.parse(mraw);
+    state = {
+      initialized:    true,
+      linkedToMosaic: true,
+      systemName:     md.systemName || 'システム',
+      alters: (md.alters || []).map(function(a) {
+        return { id: a.id, name: a.name, handle: a.handle, color: a.color,
+                 role: a.role || '', createdAt: a.createdAt || new Date().toISOString() };
+      }),
+      frontingLog: [],
+      messages:    [],
+      agreedTermsVersion: TERMS_VERSION,
+    };
+    saveState();
+    currentTab = 'front';
+    render();
+  } catch { skipImport(); }
+}
+
+function skipImport() {
+  importDismissed = true;
+  render();
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+function renderSetup() {
+  if (setupStep === 1) {
+    return '<div class="main"><div class="setup-root"><div class="setup-inner">'
+      + '<div class="setup-header"><div class="setup-logo">Shift</div>'
+      + '<div class="setup-tagline">DIDシステム向けのフロント管理・申し送りアプリ</div></div>'
+      + '<div class="step-dots"><div class="step-dot active"></div><div class="step-dot"></div></div>'
+      + '<div class="setup-card">'
+      + '<div class="field-label">システム名</div>'
+      + '<div class="field-desc">あなたたちの呼び名を教えてください。</div>'
+      + '<input type="text" id="setup-sysname" placeholder="例：桜システム、私たち…" value="' + escHtml(setupData.systemName) + '" maxlength="30" />'
+      + '<button class="btn-primary" id="setup-next" style="margin-top:18px"'
+      + (setupData.systemName.trim() ? '' : ' disabled') + ' onclick="setupNext()">次へ →</button>'
+      + '</div>'
+      + '<div class="setup-note">データはこのデバイスにのみ保存されます</div>'
+      + '</div></div></div>';
+  }
+  return '<div class="main"><div class="setup-root"><div class="setup-inner">'
+    + '<div class="setup-header"><div class="setup-logo">Shift</div>'
+    + '<div class="setup-tagline">DIDシステム向けのフロント管理・申し送りアプリ</div></div>'
+    + '<div class="step-dots"><div class="step-dot"></div><div class="step-dot active"></div></div>'
+    + '<div class="setup-card">'
+    + '<div class="field-label">最初のアルターをつくる</div>'
+    + '<div class="field-desc">今これを読んでいるあなた、または代表のアルターをひとり登録します。あとから増やせます。</div>'
+    + '<div class="input-stack">'
+    + '<input type="text" id="setup-altername" placeholder="名前（例：ホスト、守護者…）" value="' + escHtml(setupData.alterName) + '" maxlength="20" />'
+    + '<input type="text" id="setup-alterhandle" placeholder="ID（英数字、必須）" value="' + escHtml(setupData.alterHandle) + '" maxlength="20" />'
+    + '<input type="text" id="setup-alterrole" placeholder="役割・メモ（任意）" value="' + escHtml(setupData.alterRole) + '" maxlength="40" />'
+    + '</div>'
+    + '<div class="color-label">カラー</div>'
+    + '<div class="color-row" id="setup-color-row">'
+    + PALETTE.map(function(c) {
+        return '<div class="color-dot ' + (setupData.alterColor === c ? 'selected' : '') + '" data-color="' + c + '" style="background:' + c + '" onclick="selectSetupColor(\'' + c + '\')"></div>';
+      }).join('')
+    + '</div>'
+    + '<div class="btn-row">'
+    + '<button class="btn-secondary" onclick="setupBack()">← 戻る</button>'
+    + '<button class="btn-primary" id="setup-complete"'
+    + ((!setupData.alterName.trim() || !setupData.alterHandle.trim()) ? ' disabled' : '')
+    + ' onclick="completeSetup()">はじめる</button>'
+    + '</div>'
+    + '</div>'
+    + '<div class="setup-note">データはこのデバイスにのみ保存されます</div>'
+    + '</div></div></div>';
+}
+
+function bindSetup() {
+  if (setupStep === 1) {
+    const inp = document.getElementById('setup-sysname');
+    if (inp) {
+      inp.addEventListener('input', function(e) {
+        setupData.systemName = e.target.value;
+        var btn = document.getElementById('setup-next');
+        if (btn) btn.disabled = !setupData.systemName.trim();
+      });
+      inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') setupNext(); });
+      inp.focus();
+    }
+  } else {
+    var nameInp   = document.getElementById('setup-altername');
+    var handleInp = document.getElementById('setup-alterhandle');
+    var roleInp   = document.getElementById('setup-alterrole');
+    if (nameInp) {
+      nameInp.addEventListener('input', function(e) {
+        setupData.alterName = e.target.value;
+        updateSetupComplete();
+      });
+      nameInp.focus();
+    }
+    if (handleInp) {
+      handleInp.addEventListener('input', function(e) {
+        var v = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+        e.target.value = v;
+        setupData.alterHandle = v;
+        updateSetupComplete();
+      });
+    }
+    if (roleInp) roleInp.addEventListener('input', function(e) { setupData.alterRole = e.target.value; });
+  }
+}
+
+function updateSetupComplete() {
+  var btn = document.getElementById('setup-complete');
+  if (btn) btn.disabled = !setupData.alterName.trim() || !setupData.alterHandle.trim();
+}
+
+function selectSetupColor(c) {
+  setupData.alterColor = c;
+  document.querySelectorAll('#setup-color-row .color-dot').forEach(function(d) {
+    d.classList.toggle('selected', d.dataset.color === c);
+  });
+}
+
+function setupNext() {
+  if (!setupData.systemName.trim()) return;
+  setupStep = 2;
+  document.getElementById('app').innerHTML = renderSetup();
+  bindSetup();
+}
+
+function setupBack() {
+  setupStep = 1;
+  document.getElementById('app').innerHTML = renderSetup();
+  bindSetup();
+}
+
+function completeSetup() {
+  if (!setupData.alterName.trim() || !setupData.alterHandle.trim()) return;
+  state = {
+    initialized:    true,
+    systemName:     setupData.systemName.trim(),
+    linkedToMosaic: false,
+    alters: [{
+      id:        randomId(),
+      name:      setupData.alterName.trim(),
+      handle:    setupData.alterHandle.trim(),
+      color:     setupData.alterColor,
+      role:      setupData.alterRole.trim(),
+      createdAt: new Date().toISOString()
+    }],
+    frontingLog: [],
+    messages:    [],
+    agreedTermsVersion: TERMS_VERSION,
+  };
+  saveState();
+  currentTab = 'front';
+  render();
+}
+
+// ── App shell ─────────────────────────────────────────────────────────────────
+function renderApp() {
+  var unread = unreadCount();
+  var badge  = unread > 0 ? ' <span class="unread-badge">' + unread + '</span>' : '';
+  return '<nav class="nav">'
+    + '<span class="nav-title">' + escHtml(state.systemName) + '</span>'
+    + '<div class="nav-tabs">'
+    + '<button class="nav-tab" data-tab="front">フロント</button>'
+    + '<button class="nav-tab" data-tab="messages">メッセージ' + badge + '</button>'
+    + '<button class="nav-tab" data-tab="settings">設定</button>'
+    + '</div></nav>'
+    + '<div class="main"><div class="content">'
+    + '<div class="tab-panel" id="tab-front">'   + renderFront()    + '</div>'
+    + '<div class="tab-panel" id="tab-messages">' + renderMessages() + '</div>'
+    + '<div class="tab-panel" id="tab-settings">' + renderSettings() + '</div>'
+    + '</div></div>';
+}
+
+function bindApp() {
+  document.querySelectorAll('.nav-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
+  });
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-tab').forEach(function(b) { b.classList.toggle('active', b.dataset.tab === tab); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.toggle('active', p.id === 'tab-' + tab); });
+}
+
+function updateNavBadge() {
+  var msgTab = document.querySelector('.nav-tab[data-tab="messages"]');
+  if (!msgTab) return;
+  var unread = unreadCount();
+  var badge  = unread > 0 ? ' <span class="unread-badge">' + unread + '</span>' : '';
+  msgTab.innerHTML = 'メッセージ' + badge;
+}
+
+// ── Front tab ─────────────────────────────────────────────────────────────────
+function renderFront() {
+  var log   = currentFrontLog();
+  var alter = log ? state.alters.find(function(a) { return a.id === log.alterId; }) : null;
+
+  var currentCard = '';
+  if (log && alter) {
+    currentCard = '<div class="card" style="margin-bottom:12px">'
+      + '<div class="front-current">'
+      + avatarHTML(alter, 64)
+      + '<div class="front-name-large">' + escHtml(alter.name) + '</div>'
+      + '<div class="front-handle-line">@' + escHtml(alter.handle) + '</div>'
+      + '<div class="front-since">フロント中 · ' + timeAgo(log.startedAt) + '</div>'
+      + '</div>'
+      + (showFrontChangePanel ? renderFrontChangePanel() :
+          '<div style="margin-top:14px"><button class="btn-secondary" style="width:100%" onclick="openFrontChange()">フロントを交代する</button></div>')
+      + '</div>';
+  } else {
+    currentCard = '<div class="card" style="margin-bottom:12px">'
+      + '<div class="empty" style="padding:28px 0">まだ記録がありません</div>'
+      + (showFrontChangePanel ? renderFrontChangePanel() :
+          '<button class="btn-primary" onclick="openFrontChange()">フロントを記録する</button>')
+      + '</div>';
+  }
+
+  var history    = state.frontingLog.slice(0, 10);
+  var historyHtml = '';
+  if (history.length) {
+    historyHtml += '<div class="section-title" style="margin-bottom:10px">フロント履歴</div>';
+    historyHtml += history.map(function(entry, i) {
+      var a = state.alters.find(function(x) { return x.id === entry.alterId; });
+      if (!a) return '';
+      var endedAt = i === 0 ? null : history[i - 1].startedAt;
+      var dur     = duration(entry.startedAt, endedAt);
+      return '<div class="card accent" style="border-left-color:' + a.color + '">'
+        + '<div class="post-header">'
+        + avatarHTML(a, 34)
+        + '<div class="post-meta">'
+        + '<div class="post-meta-row">'
+        + '<span class="alter-name">' + escHtml(a.name) + '</span>'
+        + '<span class="alter-handle">@' + escHtml(a.handle) + '</span>'
+        + '</div>'
+        + '<div class="history-time-row">' + timeAgo(entry.startedAt) + ' · ' + dur + '</div>'
+        + '</div>'
+        + '<button class="action-btn" onclick="deleteFrontLog(\'' + entry.id + '\')">削除</button>'
+        + '</div>'
+        + (entry.memo ? '<div class="history-memo">「' + escHtml(entry.memo) + '」</div>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  return currentCard + historyHtml;
+}
+
+function renderFrontChangePanel() {
+  return '<div class="front-change-panel">'
+    + '<div class="front-change-label">誰がフロントに？</div>'
+    + '<div class="pill-row" style="margin-bottom:12px">'
+    + state.alters.map(function(a) {
+        var active = frontChangeAlterId === a.id;
+        return '<div class="pill' + (active ? ' active' : '') + '"'
+          + ' style="' + (active ? 'border-color:' + a.color + ';background:' + a.color + '20;color:' + a.color : '') + '"'
+          + ' onclick="selectFrontAlter(\'' + a.id + '\')">'
+          + '<div class="pill-dot" style="background:' + a.color + '"></div>'
+          + escHtml(a.name) + '</div>';
+      }).join('')
+    + '</div>'
+    + '<div class="field-label" style="margin-bottom:6px">メモ（任意）</div>'
+    + '<input type="text" id="front-memo" placeholder="メモ（任意）" maxlength="100" style="margin-bottom:0" />'
+    + '<div class="btn-row">'
+    + '<button class="btn-secondary" onclick="closeFrontChange()">キャンセル</button>'
+    + '<button class="btn-primary" id="front-record-btn"' + (!frontChangeAlterId ? ' disabled' : '') + ' onclick="recordFront()">記録する</button>'
+    + '</div></div>';
+}
+
+function openFrontChange() {
+  showFrontChangePanel = true;
+  frontChangeAlterId   = null;
+  refreshFront();
+}
+
+function closeFrontChange() {
+  showFrontChangePanel = false;
+  frontChangeAlterId   = null;
+  refreshFront();
+}
+
+function selectFrontAlter(id) {
+  frontChangeAlterId = id;
+  refreshFront();
+  // restore memo value if user typed before clicking
+}
+
+function recordFront() {
+  if (!frontChangeAlterId) return;
+  var memo = (document.getElementById('front-memo') || {}).value || '';
+  state.frontingLog.unshift({
+    id:        randomId(),
+    alterId:   frontChangeAlterId,
+    memo:      memo.trim(),
+    startedAt: new Date().toISOString()
+  });
+  showFrontChangePanel = false;
+  frontChangeAlterId   = null;
+  saveState();
+  refreshFront();
+  updateNavBadge();
+  showToast('記録しました');
+}
+
+function deleteFrontLog(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  state.frontingLog = state.frontingLog.filter(function(e) { return e.id !== id; });
+  saveState();
+  refreshFront();
+}
+
+function refreshFront() {
+  var panel = document.getElementById('tab-front');
+  if (panel) panel.innerHTML = renderFront();
+}
+
+// ── Messages tab ──────────────────────────────────────────────────────────────
+function renderMessages() {
+  var frontId = currentFrontAlterId();
+  if (!msgFromAlterId) msgFromAlterId = frontId;
+
+  var charsLeft = 500 - msgContent.length;
+  var canSend   = !!(msgFromAlterId && msgToAlterId && msgContent.trim());
+
+  var composeHtml = '<div class="card" style="margin-bottom:14px">'
+    + '<div class="field-label" style="margin-bottom:8px">送信者</div>'
+    + '<div class="pill-row" style="margin-bottom:12px">'
+    + state.alters.map(function(a) {
+        var active = msgFromAlterId === a.id;
+        return '<div class="pill' + (active ? ' active' : '') + '"'
+          + ' style="' + (active ? 'border-color:' + a.color + ';background:' + a.color + '20;color:' + a.color : '') + '"'
+          + ' onclick="setMsgFrom(\'' + a.id + '\')">'
+          + '<div class="pill-dot" style="background:' + a.color + '"></div>'
+          + escHtml(a.name) + '</div>';
+      }).join('')
+    + '</div>'
+    + '<div class="field-label" style="margin-bottom:8px">宛先</div>'
+    + '<div class="pill-row" style="margin-bottom:12px">'
+    + '<div class="pill' + (msgToAlterId === 'all' ? ' active' : '') + '"'
+    + ' style="' + (msgToAlterId === 'all' ? 'border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong);font-weight:700' : '') + '"'
+    + ' onclick="setMsgTo(\'all\')">全員</div>'
+    + state.alters.map(function(a) {
+        var active = msgToAlterId === a.id;
+        return '<div class="pill' + (active ? ' active' : '') + '"'
+          + ' style="' + (active ? 'border-color:' + a.color + ';background:' + a.color + '20;color:' + a.color : '') + '"'
+          + ' onclick="setMsgTo(\'' + a.id + '\')">'
+          + '<div class="pill-dot" style="background:' + a.color + '"></div>'
+          + escHtml(a.name) + '</div>';
+      }).join('')
+    + '</div>'
+    + '<textarea class="compose-textarea" id="msg-content" placeholder="メッセージを書く…" maxlength="500"'
+    + ' oninput="onMsgInput(this.value)" onkeydown="onMsgKeydown(event)">'
+    + escHtml(msgContent) + '</textarea>'
+    + '<div class="compose-footer">'
+    + '<span class="char-count' + (charsLeft <= 50 ? ' warn' : '') + '" id="char-count">' + charsLeft + '</span>'
+    + '<span style="font-size:11px;color:var(--text-4)">Ctrl+Enter</span>'
+    + '<button class="post-btn" id="msg-send-btn"' + (canSend ? '' : ' disabled') + ' onclick="sendMessage()">送信</button>'
+    + '</div></div>';
+
+  var filterHtml = '<div class="pill-row" style="margin-bottom:12px">'
+    + [['all','全て'],['mine','自分宛て'],['sent','送信済み']].map(function(item) {
+        var v = item[0], label = item[1];
+        var active = msgFilter === v;
+        return '<div class="pill' + (active ? ' active' : '') + '"'
+          + ' style="' + (active ? 'border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong);font-weight:700' : '') + '"'
+          + ' onclick="setMsgFilter(\'' + v + '\')">' + label + '</div>';
+      }).join('')
+    + '</div>';
+
+  var msgs = state.messages.slice();
+  if (msgFilter === 'mine') {
+    msgs = msgs.filter(function(m) { return m.toAlterId === 'all' || m.toAlterId === frontId; });
+  } else if (msgFilter === 'sent') {
+    msgs = msgs.filter(function(m) { return m.fromAlterId === frontId; });
+  }
+
+  var listHtml = '';
+  if (msgFilter === 'all') {
+    var myMsgs    = msgs.filter(function(m) { return m.toAlterId === 'all' || m.toAlterId === frontId; });
+    var otherMsgs = msgs.filter(function(m) { return m.toAlterId !== 'all' && m.toAlterId !== frontId; });
+    if (myMsgs.length) {
+      listHtml += '<div class="msg-section-head">── 自分宛て ──</div>';
+      listHtml += myMsgs.map(function(m) { return renderMessage(m, frontId); }).join('');
+    }
+    if (otherMsgs.length) {
+      listHtml += '<div class="msg-section-head">── その他 ──</div>';
+      listHtml += otherMsgs.map(function(m) { return renderMessage(m, frontId); }).join('');
+    }
+    if (!myMsgs.length && !otherMsgs.length) {
+      listHtml = '<div class="empty">まだメッセージはありません。</div>';
+    }
+  } else {
+    listHtml = msgs.length
+      ? msgs.map(function(m) { return renderMessage(m, frontId); }).join('')
+      : '<div class="empty">該当するメッセージはありません。</div>';
+  }
+
+  return composeHtml + filterHtml + listHtml;
+}
+
+function renderMessage(msg, frontId) {
+  var from = state.alters.find(function(a) { return a.id === msg.fromAlterId; });
+  if (!from) return '';
+  var toAlter  = msg.toAlterId !== 'all' ? state.alters.find(function(a) { return a.id === msg.toAlterId; }) : null;
+  var toLabel  = msg.toAlterId === 'all' ? '全員へ' : ('@' + escHtml((toAlter && toAlter.handle) || '?'));
+  var isForMe  = msg.toAlterId === 'all' || msg.toAlterId === frontId;
+  var isNew    = !msg.read && isForMe;
+
+  return '<div class="card accent" style="border-left-color:' + from.color + '">'
+    + '<div class="msg-header">'
+    + avatarHTML(from, 34)
+    + '<div class="msg-meta">'
+    + '<div class="msg-route">'
+    + '<span class="alter-name">' + escHtml(from.name) + '</span>'
+    + '<span style="color:var(--text-4);font-size:12px">→</span>'
+    + '<span style="font-size:12px;color:var(--text-3)">' + toLabel + '</span>'
+    + (isNew ? '<span class="new-badge" style="background:' + from.color + '">NEW</span>' : '')
+    + '</div>'
+    + '<div class="post-time">' + timeAgo(msg.createdAt) + '</div>'
+    + '</div></div>'
+    + '<div class="msg-body">' + escHtml(msg.content) + '</div>'
+    + '<div class="msg-footer">'
+    + (isForMe && !msg.read ? '<button class="btn-ghost" onclick="markRead(\'' + msg.id + '\')">既読にする</button>' : '')
+    + '<button class="action-btn" style="margin-left:auto" onclick="deleteMessage(\'' + msg.id + '\')">削除</button>'
+    + '</div></div>';
+}
+
+function onMsgInput(val) {
+  msgContent = val;
+  var btn = document.getElementById('msg-send-btn');
+  if (btn) btn.disabled = !(msgFromAlterId && msgToAlterId && val.trim());
+  var counter = document.getElementById('char-count');
+  if (counter) {
+    var left = 500 - val.length;
+    counter.textContent = left;
+    counter.classList.toggle('warn', left <= 50);
+  }
+}
+
+function onMsgKeydown(e) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage();
+}
+
+function setMsgFrom(id) { msgFromAlterId = id; refreshMessages(); }
+function setMsgTo(id)   { msgToAlterId   = id; refreshMessages(); }
+function setMsgFilter(v){ msgFilter       = v;  refreshMessages(); }
+
+function sendMessage() {
+  if (!msgFromAlterId || !msgToAlterId || !msgContent.trim()) return;
+  state.messages.unshift({
+    id:          randomId(),
+    fromAlterId: msgFromAlterId,
+    toAlterId:   msgToAlterId,
+    content:     msgContent.trim(),
+    read:        false,
+    createdAt:   new Date().toISOString()
+  });
+  msgContent = '';
+  saveState();
+  refreshMessages();
+  updateNavBadge();
+  showToast('送信しました');
+}
+
+function markRead(id) {
+  state.messages = state.messages.map(function(m) { return m.id === id ? Object.assign({}, m, { read: true }) : m; });
+  saveState();
+  refreshMessages();
+  updateNavBadge();
+}
+
+function deleteMessage(id) {
+  if (!confirm('このメッセージを削除しますか？')) return;
+  state.messages = state.messages.filter(function(m) { return m.id !== id; });
+  saveState();
+  refreshMessages();
+  updateNavBadge();
+}
+
+function refreshMessages() {
+  var panel = document.getElementById('tab-messages');
+  if (panel) panel.innerHTML = renderMessages();
+}
+
+// ── Settings tab ──────────────────────────────────────────────────────────────
+function renderSettings() {
+  var standalone = isInStandaloneMode();
+  var ios        = isIOS();
+
+  var installHtml = '';
+  if (!standalone) {
+    installHtml = '<div class="install-section">'
+      + '<div class="install-section-title">📲 ホーム画面に追加する</div>'
+      + '<div class="install-section-desc">ホーム画面に追加すると、ネイティブアプリのように使えます。オフラインでも動作します。</div>';
+    if (ios) {
+      installHtml += '<div class="install-steps">'
+        + '<div class="install-step"><div class="install-step-num">1</div><div class="install-step-text">Safariの下部にある <strong>共有ボタン（□↑）</strong> をタップ</div></div>'
+        + '<div class="install-step"><div class="install-step-num">2</div><div class="install-step-text"><strong>「ホーム画面に追加」</strong> を選択</div></div>'
+        + '<div class="install-step"><div class="install-step-num">3</div><div class="install-step-text"><strong>「追加」</strong> をタップして完了</div></div>'
+        + '</div>'
+        + '<div style="font-size:12px;color:rgba(255,255,255,0.7);text-align:center">※ SafariブラウザからのみPWAとして追加できます</div>';
+    } else if (deferredPrompt) {
+      installHtml += '<button class="install-big-btn" onclick="triggerInstall()">📲 ホーム画面に追加</button>';
+    } else {
+      installHtml += '<div class="install-steps">'
+        + '<div class="install-step"><div class="install-step-num">1</div><div class="install-step-text">ブラウザのメニュー（⋮ または …）を開く</div></div>'
+        + '<div class="install-step"><div class="install-step-num">2</div><div class="install-step-text"><strong>「ホーム画面に追加」</strong> または <strong>「アプリをインストール」</strong> を選択</div></div>'
+        + '</div>';
+    }
+    installHtml += '</div>';
+  } else {
+    installHtml = '<div class="card settings-section" style="border-left:3px solid #4a9a7a">'
+      + '<div class="settings-label">✅ アプリとしてインストール済み</div>'
+      + '<div class="settings-desc">Shiftはホーム画面からネイティブアプリとして動作しています。</div>'
+      + '</div>';
+  }
+
+  var alterListHtml = state.alters.map(function(a) {
+    var logCount = state.frontingLog.filter(function(e) { return e.alterId === a.id; }).length;
+    return '<div class="card accent" style="border-left-color:' + a.color + ';margin-bottom:8px">'
+      + '<div class="alter-card-row">'
+      + avatarHTML(a, 44)
+      + '<div class="alter-info">'
+      + '<div class="alter-card-name">' + escHtml(a.name) + '</div>'
+      + '<div class="alter-card-handle">@' + escHtml(a.handle) + '</div>'
+      + (a.role ? '<div class="alter-card-role">' + escHtml(a.role) + '</div>' : '')
+      + '<div class="alter-card-count">フロント記録 ' + logCount + '件</div>'
+      + '</div>'
+      + '<div class="alter-card-btns">'
+      + '<button class="btn-ghost" onclick="startEditAlter(\'' + a.id + '\')">編集</button>'
+      + (state.alters.length > 1 ? '<button class="btn-ghost" style="color:var(--text-4)" onclick="deleteAlter(\'' + a.id + '\')">削除</button>' : '')
+      + '</div></div></div>';
+  }).join('');
+
+  return '<div class="section-title" style="margin-bottom:14px">設定</div>'
+    + installHtml
+    + '<div class="card settings-section">'
+    + '<div class="section-header" style="margin-bottom:10px">'
+    + '<div class="settings-label" style="margin-bottom:0">アルター管理</div>'
+    + '<button class="' + (showAlterForm && !editingAlterId ? 'btn-secondary' : 'btn-primary') + '" style="padding:7px 14px;font-size:13px;width:auto" onclick="toggleAlterForm()">'
+    + (showAlterForm && !editingAlterId ? 'キャンセル' : '+ 追加') + '</button>'
+    + '</div>'
+    + (state.linkedToMosaic ? '<div style="font-size:12px;color:var(--text-3);margin-bottom:10px;padding:8px 10px;background:var(--bg);border-radius:8px">🔗 Mosaicと連携中 — アルターの変更はMosaicにも反映されます</div>' : '')
+    + (showAlterForm ? renderAlterForm() : '')
+    + alterListHtml
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">システム名</div>'
+    + '<input type="text" id="settings-sysname" value="' + escHtml(state.systemName) + '" maxlength="30" />'
+    + '<button class="btn-primary" style="margin-top:12px" onclick="saveSystemName()">保存</button>'
+    + '</div>'
+    + (state.linkedToMosaic ? '<div class="card settings-section">'
+    + '<div class="settings-label">Mosaicとの連携</div>'
+    + '<div class="settings-desc">現在Mosaicのデータと連携しています。アルターの変更はMosaicにも反映されます。</div>'
+    + '<button class="btn-ghost" onclick="unlinkMosaic()">連携を解除する</button>'
+    + '</div>' : '')
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">データについて</div>'
+    + '<div class="settings-desc">データはこのデバイスにのみ保存されます。サーバーへの送信は一切行いません。</div>'
+    + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">アルター数</span><span class="stat-row-val">' + state.alters.length + '人</span></div>'
+    + '<div class="stat-row"><span class="stat-row-label">フロント記録</span><span class="stat-row-val">' + state.frontingLog.length + '件</span></div>'
+    + '<div class="stat-row"><span class="stat-row-label">メッセージ</span><span class="stat-row-val">' + state.messages.length + '件</span></div>'
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">プライバシーと規約</div>'
+    + '<div class="settings-desc">最初に表示した「プライバシーと規約」をもう一度読めます。</div>'
+    + '<button class="btn-secondary" style="width:100%" onclick="viewTerms()">プライバシーと規約を読む</button>'
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">開発者情報</div>'
+    + '<div class="dev-msg">' + escHtml(DEV_INFO.name) + '<br>' + escHtml(DEV_INFO.message) + '</div>'
+    + (DEV_INFO.links && DEV_INFO.links.length
+        ? '<div class="dev-links">'
+          + DEV_INFO.links.map(function(l) { return '<a class="dev-link" href="' + escHtml(l.url) + '" target="_blank" rel="noopener noreferrer">🔗 ' + escHtml(l.label) + '</a>'; }).join('')
+          + '</div>'
+        : '')
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">開発者に寄付する</div>'
+    + (activeDonations().length
+        ? '<div class="settings-desc">よかったら暗号資産で応援できます。下のアドレスに送金してください。寄付は任意です。</div>'
+          + activeDonations().map(function(d) {
+              return '<div class="donate-block">'
+                + '<div class="donate-label">' + escHtml(d.label) + '</div>'
+                + '<div class="eth-box">' + escHtml(d.address) + '</div>'
+                + '<button class="btn-secondary" style="width:100%" onclick="copyAddress(\'' + escHtml(d.address) + '\')">アドレスをコピー</button>'
+                + '</div>';
+            }).join('')
+          + '<div class="settings-desc" style="margin-top:12px;margin-bottom:0;font-size:12px;color:var(--text-4)">⚠️ 送る前に、アドレスが上のものと同じか必ず確認してください。送金は取り消せません。</div>'
+        : '<div class="settings-desc" style="margin-bottom:0">寄付先のアドレスはまだ設定されていません。</div>')
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">アプリの更新</div>'
+    + '<div class="settings-desc">最新になっていないと感じたら、下のボタンで更新できます（データは消えません）。</div>'
+    + '<button class="btn-primary" onclick="forceUpdate()">最新の状態にして再読み込み</button>'
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">危険な操作</div>'
+    + '<div class="settings-desc">以下の操作は取り消せません。</div>'
+    + '<button class="btn-danger" onclick="resetApp()">すべてのデータをリセット</button>'
+    + '</div>'
+    + '<div style="text-align:center;margin-top:24px;color:var(--text-4);font-size:11px;line-height:1.8">'
+    + 'Shift v' + escHtml(APP_VERSION) + '<br>Mosaicの兄弟アプリ · DIDシステム向け<br>© 田中志 / Ataraxia Works<br>データはあなたのデバイスのみに保存されます'
+    + '</div>';
+}
+
+function renderAlterForm() {
+  var isEdit = !!editingAlterId;
+  return '<div class="card" style="margin-bottom:12px;background:var(--bg);border:1.5px solid var(--border)">'
+    + '<div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:12px">' + (isEdit ? 'アルターを編集' : '新しいアルター') + '</div>'
+    + '<div class="input-stack">'
+    + '<input type="text" id="af-name" placeholder="名前（必須）" value="' + escHtml(alterFormData.name) + '" maxlength="20" oninput="onAfName(this.value)" />'
+    + '<input type="text" id="af-handle" placeholder="ID（英数字、必須）" value="' + escHtml(alterFormData.handle) + '" maxlength="20" oninput="onAfHandle(this)" />'
+    + '<input type="text" id="af-role" placeholder="役割・メモ（任意）" value="' + escHtml(alterFormData.role) + '" maxlength="40" oninput="alterFormData.role=this.value" />'
+    + '</div>'
+    + '<div class="color-label">カラー</div>'
+    + '<div class="color-row" id="af-color-row">'
+    + PALETTE.map(function(c) {
+        return '<div class="color-dot ' + (alterFormData.color === c ? 'selected' : '') + '" data-color="' + c + '" style="background:' + c + '" onclick="selectAlterColor(\'' + c + '\')"></div>';
+      }).join('')
+    + '</div>'
+    + '<div class="btn-row">'
+    + '<button class="btn-secondary" onclick="cancelAlterForm()">キャンセル</button>'
+    + '<button class="btn-primary" id="af-save"' + ((!alterFormData.name.trim() || !alterFormData.handle.trim()) ? ' disabled' : '') + ' onclick="saveAlter()">' + (isEdit ? '更新する' : '追加する') + '</button>'
+    + '</div></div>';
+}
+
+function onAfName(val) {
+  alterFormData.name = val;
+  var btn = document.getElementById('af-save');
+  if (btn) btn.disabled = !val.trim() || !alterFormData.handle.trim();
+}
+
+function onAfHandle(input) {
+  var v = input.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  input.value = v;
+  alterFormData.handle = v;
+  var btn = document.getElementById('af-save');
+  if (btn) btn.disabled = !alterFormData.name.trim() || !v.trim();
+}
+
+function selectAlterColor(c) {
+  alterFormData.color = c;
+  document.querySelectorAll('#af-color-row .color-dot').forEach(function(d) {
+    d.classList.toggle('selected', d.dataset.color === c);
+  });
+}
+
+function toggleAlterForm() {
+  showAlterForm = !showAlterForm;
+  if (!showAlterForm) { editingAlterId = null; alterFormData = { name: '', handle: '', color: PALETTE[0], role: '' }; }
+  refreshSettings();
+}
+
+function cancelAlterForm() {
+  showAlterForm  = false;
+  editingAlterId = null;
+  alterFormData  = { name: '', handle: '', color: PALETTE[0], role: '' };
+  refreshSettings();
+}
+
+function startEditAlter(id) {
+  var a = state.alters.find(function(x) { return x.id === id; });
+  if (!a) return;
+  editingAlterId = id;
+  alterFormData  = { name: a.name, handle: a.handle, color: a.color, role: a.role || '' };
+  showAlterForm  = true;
+  refreshSettings();
+}
+
+function saveAlter() {
+  if (!alterFormData.name.trim() || !alterFormData.handle.trim()) return;
+  if (editingAlterId) {
+    state.alters = state.alters.map(function(a) {
+      return a.id === editingAlterId
+        ? Object.assign({}, a, { name: alterFormData.name.trim(), handle: alterFormData.handle.trim(), color: alterFormData.color, role: alterFormData.role.trim() })
+        : a;
+    });
+    editingAlterId = null;
+  } else {
+    state.alters.push({ id: randomId(), name: alterFormData.name.trim(), handle: alterFormData.handle.trim(), color: alterFormData.color, role: alterFormData.role.trim(), createdAt: new Date().toISOString() });
+  }
+  showAlterForm = false;
+  alterFormData = { name: '', handle: '', color: PALETTE[0], role: '' };
+  saveState();
+  if (state.linkedToMosaic) syncToMosaic();
+  refreshSettings();
+  showToast('保存しました');
+}
+
+function deleteAlter(id) {
+  if (state.alters.length <= 1) { showToast('アルターは最低1人必要です'); return; }
+  var a = state.alters.find(function(x) { return x.id === id; });
+  if (!confirm((a ? a.name : 'このアルター') + ' を削除しますか？')) return;
+  state.alters = state.alters.filter(function(x) { return x.id !== id; });
+  saveState();
+  if (state.linkedToMosaic) syncToMosaic();
+  refreshSettings();
+}
+
+function saveSystemName() {
+  var inp = document.getElementById('settings-sysname');
+  if (!inp || !inp.value.trim()) return;
+  state.systemName = inp.value.trim();
+  saveState();
+  if (state.linkedToMosaic) syncToMosaic();
+  var navTitle = document.querySelector('.nav-title');
+  if (navTitle) navTitle.textContent = state.systemName;
+  showToast('システム名を保存しました');
+}
+
+function unlinkMosaic() {
+  if (!confirm('Mosaicとの連携を解除しますか？既存のデータは消えません。')) return;
+  state.linkedToMosaic = false;
+  saveState();
+  refreshSettings();
+  showToast('連携を解除しました');
+}
+
+async function triggerInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    try { await deferredPrompt.userChoice; } catch {}
+    deferredPrompt = null;
+    refreshSettings();
+    return;
+  }
+  showToast(isIOS()
+    ? 'Safariの共有ボタンから「ホーム画面に追加」を選んでください'
+    : 'ブラウザのメニューから「ホーム画面に追加 / インストール」を選んでください');
+}
+
+async function forceUpdate() {
+  showToast('最新を確認しています…');
+  try {
+    if ('serviceWorker' in navigator) {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(function(r) { return r.update().catch(function() {}); }));
+    }
+  } catch {}
+  try {
+    if (window.caches) {
+      var keys = await caches.keys();
+      await Promise.all(keys.map(function(k) { return caches.delete(k); }));
+    }
+  } catch {}
+  window.location.reload();
+}
+
+function resetApp() {
+  if (!confirm('すべてのデータを削除してリセットしますか？この操作は取り消せません。')) return;
+  if (!confirm('本当によろしいですか？この操作は元に戻せません。')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state               = { initialized: false, systemName: '', linkedToMosaic: false, alters: [], frontingLog: [], messages: [], agreedTermsVersion: TERMS_VERSION };
+  setupStep           = 1;
+  setupData           = { systemName: '', alterName: '', alterHandle: '', alterColor: PALETTE[0], alterRole: '' };
+  showAlterForm       = false;
+  editingAlterId      = null;
+  showFrontChangePanel = false;
+  frontChangeAlterId  = null;
+  msgFilter           = 'all';
+  msgContent          = '';
+  msgFromAlterId      = null;
+  msgToAlterId        = 'all';
+  showTermsView       = false;
+  updateInfo          = null;
+  importDismissed     = true;
+  render();
+}
+
+function refreshSettings() {
+  var panel = document.getElementById('tab-settings');
+  if (panel) panel.innerHTML = renderSettings();
+}
+
+// ── Copy donation address ─────────────────────────────────────────────────────
+function copyAddress(text) {
+  var done = function() { showToast('アドレスをコピーしました'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(function() { fallbackCopy(text, done); });
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function fallbackCopy(text, done) {
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    done();
+  } catch {
+    showToast('コピーできませんでした');
+  }
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+const _saved = loadState();
+if (_saved) state = Object.assign({}, state, _saved);
+checkVersion();
+render();
+
+// ── Service Worker ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  var hadController = !!navigator.serviceWorker.controller;
+  var reloading     = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (!hadController || reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      reg.update().catch(function() {});
+      reg.addEventListener('updatefound', function() {
+        var nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', function() {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            nw.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    }).catch(function() {});
+  });
+}
+</script>
+</body>
+</html>

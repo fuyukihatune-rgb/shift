@@ -1,0 +1,10 @@
+# Windows の Mark-of-the-Web 由来のゴミファイル
+*:Zone.Identifier
+*Zone.Identifier
+
+# 設計書（内部ドキュメント。公開リポジトリに含めたくない場合は除外）
+shift-spec.md
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
