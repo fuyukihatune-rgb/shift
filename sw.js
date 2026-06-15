@@ -1,5 +1,5 @@
 // バージョンを上げるたびに CACHE_NAME も変えること（= 古いキャッシュが必ず捨てられる）
-const CACHE_NAME = 'shift-1.0.0';
+const CACHE_NAME = 'shift-1.1.0';
 const CACHE_URLS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

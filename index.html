@@ -235,11 +235,29 @@
       .nav-title { font-size: 15px; }
       .pill { padding: 5px 11px; }
     }
+
+    /* ── Picker bar / bottom sheet（Mosaicと統一） ── */
+    .picker-bar { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 9px 12px; cursor: pointer; text-align: left; font-family: inherit; margin-bottom: 12px; transition: border-color 0.15s; }
+    .picker-bar:active { transform: scale(0.99); }
+    .picker-bar .pb-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .picker-bar .pb-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .picker-bar .pb-chev { margin-left: auto; color: var(--text-3); font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1200; display: flex; align-items: flex-end; justify-content: center; animation: sheetfade 0.15s ease; }
+    @keyframes sheetfade { from { opacity: 0; } to { opacity: 1; } }
+    .sheet { background: var(--surface); width: 100%; max-width: 520px; border-radius: 18px 18px 0 0; max-height: 76vh; overflow-y: auto; padding: 4px 0 calc(14px + var(--safe-bottom)); animation: sheetup 0.2s cubic-bezier(0.2,0.7,0.2,1); }
+    @keyframes sheetup { from { transform: translateY(100%); } to { transform: none; } }
+    .sheet-title { font-size: 13px; font-weight: 700; color: var(--text-3); padding: 14px 18px 8px; }
+    .sheet-item { display: flex; align-items: center; gap: 12px; padding: 11px 18px; cursor: pointer; }
+    .sheet-item:active { background: var(--accent-soft); }
+    .sheet-item .si-name { font-size: 15px; font-weight: 600; color: var(--text); }
+    .sheet-item .si-sub { font-size: 12px; color: var(--text-3); }
+    .sheet-item .si-check { margin-left: auto; color: var(--accent-strong); font-weight: 800; font-size: 17px; }
   </style>
 </head>
 <body>
 <div id="app"></div>
 <div class="toast" id="toast"></div>
+<div id="sheet-root"></div>
 
 <script>
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -249,14 +267,16 @@ const MOSAIC_KEY  = 'mosaic_v1';
 
 // ── アプリのバージョン ────────────────────────────────────────────────────────
 // 更新するたびに数字を上げる。sw.js の CACHE_NAME も合わせて変えること。
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const VERSION_KEY = 'shift_version';
 // 今回のバージョンで新しくなったところ（アップデート画面に出ます）
 const WHATS_NEW = [
-  "フロントにいる人格を記録・交代できるようにしました",
-  "人格同士でメッセージ（申し送り）を送れるようにしました",
-  "Mosaicの人格情報をそのまま引き継げるようにしました",
-  "ホーム画面に追加して、オフラインでも使えるようにしました",
+  "すべての記録をファイルに書き出して保存・復元できる「バックアップ」を追加しました（設定）",
+  "フロント交代・メッセージの送信者／宛先を、一覧から選ぶだけにして分かりやすくしました（Mosaicと統一）",
+  "最初の設定をかんたんにしました",
+  "フロントにいる人格を記録・交代できます",
+  "人格同士でメッセージ（申し送り）を送れます",
+  "Mosaicの人格情報をそのまま引き継げます",
 ];
 
 // 規約・プライバシーの内容を変えたら数字を1つ増やすと、もう一度同意画面が出ます
@@ -387,7 +407,6 @@ function syncToMosaic() {
     if (!raw) return;
     const md = JSON.parse(raw);
     md.alters     = state.alters;
-    md.systemName = state.systemName;
     localStorage.setItem(MOSAIC_KEY, JSON.stringify(md));
   } catch {}
 }
@@ -547,7 +566,7 @@ function renderHelp() {
     + '<div class="terms-h">⚙️ 設定でできること</div>'
     + '<ul class="terms-list">'
     + '<li><strong>人格の追加・編集</strong>：名前・色・役割を登録できます。ID（英数字）は空欄でもOKです。</li>'
-    + '<li><strong>システム名</strong>：あなたたちの呼び名を変えられます。</li>'
+    + '<li><strong>バックアップ</strong>：すべての記録をファイルに書き出して保存・復元できます。</li>'
     + '<li><strong>Mosaicとの引き継ぎ</strong>：兄弟アプリMosaicと人格の情報を行き来できます（下記）。</li>'
     + '</ul>'
     + '<div class="terms-h">🔄 Mosaicと人格を引き継ぐ</div>'
@@ -612,7 +631,6 @@ function dismissUpdate() {
 
 // ── Mosaic import screen ──────────────────────────────────────────────────────
 function renderMosaicImport(md) {
-  const sysName    = escHtml(md.systemName || 'システム');
   const alterCount = (md.alters || []).length;
   return '<div class="main"><div class="setup-root"><div class="setup-inner">'
     + '<div class="setup-header"><div class="setup-logo">Shift</div>'
@@ -621,8 +639,7 @@ function renderMosaicImport(md) {
     + '<div style="font-size:28px;text-align:center;margin-bottom:12px">🧩</div>'
     + '<div style="font-size:16px;font-weight:700;text-align:center;margin-bottom:16px">Mosaicのデータが見つかりました</div>'
     + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:16px">'
-    + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">システム名</span><span class="stat-row-val">' + sysName + '</span></div>'
-    + '<div class="stat-row"><span class="stat-row-label">人格数</span><span class="stat-row-val">' + alterCount + '人</span></div>'
+    + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">人格数</span><span class="stat-row-val">' + alterCount + '人</span></div>'
     + '</div>'
     + '<div class="field-desc">人格情報をShiftに引き継いですぐ使いはじめられます。</div>'
     + '<button class="btn-primary" style="margin-bottom:10px" onclick="importFromMosaic()">Mosaicから引き継ぐ</button>'
@@ -640,7 +657,7 @@ function importFromMosaic() {
     state = {
       initialized:    true,
       linkedToMosaic: true,
-      systemName:     md.systemName || 'システム',
+      systemName:     '',
       alters: (md.alters || []).map(function(a) {
         return { id: a.id, name: a.name, handle: a.handle, color: a.color,
                  role: a.role || '', createdAt: a.createdAt || new Date().toISOString() };
@@ -696,28 +713,9 @@ function doCodeImport() {
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 function renderSetup() {
-  if (setupStep === 1) {
-    return '<div class="main"><div class="setup-root"><div class="setup-inner">'
-      + '<div class="setup-header"><div class="setup-logo">Shift</div>'
-      + '<div class="setup-tagline">DIDシステム向けのフロント管理・申し送りアプリ</div></div>'
-      + '<div class="step-dots"><div class="step-dot active"></div><div class="step-dot"></div></div>'
-      + '<div class="setup-card">'
-      + '<div class="field-label">システム名</div>'
-      + '<div class="field-desc">あなたたちの呼び名を教えてください。</div>'
-      + '<input type="text" id="setup-sysname" placeholder="例：桜システム、私たち…" value="' + escHtml(setupData.systemName) + '" maxlength="30" />'
-      + '<button class="btn-primary" id="setup-next" style="margin-top:18px"'
-      + (setupData.systemName.trim() ? '' : ' disabled') + ' onclick="setupNext()">次へ →</button>'
-      + '<div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-light)">'
-      + '<a href="#" onclick="openCodeImport();return false" style="font-size:12.5px;color:var(--text-3);text-decoration:none;line-height:1.7">すでにMosaicを使っている方は、<br>引き継ぎコードで人格を取り込めます →</a>'
-      + '</div>'
-      + '</div>'
-      + '<div class="setup-note">データはこのデバイスにのみ保存されます</div>'
-      + '</div></div></div>';
-  }
   return '<div class="main"><div class="setup-root"><div class="setup-inner">'
     + '<div class="setup-header"><div class="setup-logo">Shift</div>'
     + '<div class="setup-tagline">DIDシステム向けのフロント管理・申し送りアプリ</div></div>'
-    + '<div class="step-dots"><div class="step-dot"></div><div class="step-dot active"></div></div>'
     + '<div class="setup-card">'
     + '<div class="field-label">最初の人格をつくる</div>'
     + '<div class="field-desc">今これを読んでいるあなた、または代表の人格をひとり登録します。あとから増やせます。</div>'
@@ -732,11 +730,11 @@ function renderSetup() {
         return '<div class="color-dot ' + (setupData.alterColor === c ? 'selected' : '') + '" data-color="' + c + '" style="background:' + c + '" onclick="selectSetupColor(\'' + c + '\')"></div>';
       }).join('')
     + '</div>'
-    + '<div class="btn-row">'
-    + '<button class="btn-secondary" onclick="setupBack()">← 戻る</button>'
-    + '<button class="btn-primary" id="setup-complete"'
+    + '<button class="btn-primary" id="setup-complete" style="margin-top:18px"'
     + (!setupData.alterName.trim() ? ' disabled' : '')
     + ' onclick="completeSetup()">はじめる</button>'
+    + '<div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-light)">'
+    + '<a href="#" onclick="openCodeImport();return false" style="font-size:12.5px;color:var(--text-3);text-decoration:none;line-height:1.7">すでにMosaicを使っている方は、<br>引き継ぎコードで人格を取り込めます →</a>'
     + '</div>'
     + '</div>'
     + '<div class="setup-note">データはこのデバイスにのみ保存されます</div>'
@@ -744,38 +742,25 @@ function renderSetup() {
 }
 
 function bindSetup() {
-  if (setupStep === 1) {
-    const inp = document.getElementById('setup-sysname');
-    if (inp) {
-      inp.addEventListener('input', function(e) {
-        setupData.systemName = e.target.value;
-        var btn = document.getElementById('setup-next');
-        if (btn) btn.disabled = !setupData.systemName.trim();
-      });
-      inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') setupNext(); });
-      inp.focus();
-    }
-  } else {
-    var nameInp   = document.getElementById('setup-altername');
-    var handleInp = document.getElementById('setup-alterhandle');
-    var roleInp   = document.getElementById('setup-alterrole');
-    if (nameInp) {
-      nameInp.addEventListener('input', function(e) {
-        setupData.alterName = e.target.value;
-        updateSetupComplete();
-      });
-      nameInp.focus();
-    }
-    if (handleInp) {
-      handleInp.addEventListener('input', function(e) {
-        var v = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
-        e.target.value = v;
-        setupData.alterHandle = v;
-        updateSetupComplete();
-      });
-    }
-    if (roleInp) roleInp.addEventListener('input', function(e) { setupData.alterRole = e.target.value; });
+  var nameInp   = document.getElementById('setup-altername');
+  var handleInp = document.getElementById('setup-alterhandle');
+  var roleInp   = document.getElementById('setup-alterrole');
+  if (nameInp) {
+    nameInp.addEventListener('input', function(e) {
+      setupData.alterName = e.target.value;
+      updateSetupComplete();
+    });
+    nameInp.focus();
   }
+  if (handleInp) {
+    handleInp.addEventListener('input', function(e) {
+      var v = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      e.target.value = v;
+      setupData.alterHandle = v;
+      updateSetupComplete();
+    });
+  }
+  if (roleInp) roleInp.addEventListener('input', function(e) { setupData.alterRole = e.target.value; });
 }
 
 function updateSetupComplete() {
@@ -790,24 +775,11 @@ function selectSetupColor(c) {
   });
 }
 
-function setupNext() {
-  if (!setupData.systemName.trim()) return;
-  setupStep = 2;
-  document.getElementById('app').innerHTML = renderSetup();
-  bindSetup();
-}
-
-function setupBack() {
-  setupStep = 1;
-  document.getElementById('app').innerHTML = renderSetup();
-  bindSetup();
-}
-
 function completeSetup() {
   if (!setupData.alterName.trim()) return;
   state = {
     initialized:    true,
-    systemName:     setupData.systemName.trim(),
+    systemName:     '',
     linkedToMosaic: false,
     alters: [{
       id:        randomId(),
@@ -831,7 +803,7 @@ function renderApp() {
   var unread = unreadCount();
   var badge  = unread > 0 ? ' <span class="unread-badge">' + unread + '</span>' : '';
   return '<nav class="nav">'
-    + '<span class="nav-title">' + escHtml(state.systemName) + '</span>'
+    + '<span class="nav-title">Shift</span>'
     + '<div class="nav-tabs">'
     + '<button class="nav-tab" data-tab="front">フロント</button>'
     + '<button class="nav-tab" data-tab="messages">メッセージ' + badge + '</button>'
@@ -921,16 +893,14 @@ function renderFront() {
 function renderFrontChangePanel() {
   return '<div class="front-change-panel">'
     + '<div class="front-change-label">誰がフロントに？</div>'
-    + '<div class="pill-row" style="margin-bottom:12px">'
-    + state.alters.map(function(a) {
-        var active = frontChangeAlterId === a.id;
-        return '<div class="pill' + (active ? ' active' : '') + '"'
-          + ' style="' + (active ? 'border-color:' + a.color + ';background:' + a.color + '20;color:' + a.color : '') + '"'
-          + ' onclick="selectFrontAlter(\'' + a.id + '\')">'
-          + '<div class="pill-dot" style="background:' + a.color + '"></div>'
-          + escHtml(a.name) + '</div>';
-      }).join('')
-    + '</div>'
+    + (function() {
+        var sel = frontChangeAlterId ? state.alters.find(function(a) { return a.id === frontChangeAlterId; }) : null;
+        return '<button class="picker-bar" onclick="openFrontPicker()">'
+          + (sel
+              ? '<span class="pb-dot" style="background:' + sel.color + '"></span><span class="pb-name">' + escHtml(sel.name) + '</span>'
+              : '<span class="pb-name" style="color:var(--text-3);font-weight:600">人格を選んでください</span>')
+          + '<span class="pb-chev">選ぶ ▾</span></button>';
+      })()
     + '<div class="field-label" style="margin-bottom:6px">メモ（任意）</div>'
     + '<input type="text" id="front-memo" placeholder="メモ（任意）" maxlength="100" style="margin-bottom:0" />'
     + '<div class="btn-row">'
@@ -994,32 +964,23 @@ function renderMessages() {
   var charsLeft = 500 - msgContent.length;
   var canSend   = !!(msgFromAlterId && msgToAlterId && msgContent.trim());
 
+  var fromAlter = msgFromAlterId ? state.alters.find(function(a) { return a.id === msgFromAlterId; }) : null;
+  var toName, toColor;
+  if (msgToAlterId === 'all') { toName = '全員へ'; toColor = 'var(--accent)'; }
+  else { var ta = state.alters.find(function(a) { return a.id === msgToAlterId; }); toName = ta ? ta.name : '選んでください'; toColor = ta ? ta.color : 'var(--text-4)'; }
+
   var composeHtml = '<div class="card" style="margin-bottom:14px">'
     + '<div class="field-label" style="margin-bottom:8px">送信者</div>'
-    + '<div class="pill-row" style="margin-bottom:12px">'
-    + state.alters.map(function(a) {
-        var active = msgFromAlterId === a.id;
-        return '<div class="pill' + (active ? ' active' : '') + '"'
-          + ' style="' + (active ? 'border-color:' + a.color + ';background:' + a.color + '20;color:' + a.color : '') + '"'
-          + ' onclick="setMsgFrom(\'' + a.id + '\')">'
-          + '<div class="pill-dot" style="background:' + a.color + '"></div>'
-          + escHtml(a.name) + '</div>';
-      }).join('')
-    + '</div>'
+    + '<button class="picker-bar" onclick="openMsgFromPicker()">'
+    + (fromAlter
+        ? '<span class="pb-dot" style="background:' + fromAlter.color + '"></span><span class="pb-name">' + escHtml(fromAlter.name) + '</span>'
+        : '<span class="pb-name" style="color:var(--text-3);font-weight:600">選んでください</span>')
+    + '<span class="pb-chev">選ぶ ▾</span></button>'
     + '<div class="field-label" style="margin-bottom:8px">宛先</div>'
-    + '<div class="pill-row" style="margin-bottom:12px">'
-    + '<div class="pill' + (msgToAlterId === 'all' ? ' active' : '') + '"'
-    + ' style="' + (msgToAlterId === 'all' ? 'border-color:var(--accent);background:var(--accent-soft);color:var(--accent-strong);font-weight:700' : '') + '"'
-    + ' onclick="setMsgTo(\'all\')">全員</div>'
-    + state.alters.map(function(a) {
-        var active = msgToAlterId === a.id;
-        return '<div class="pill' + (active ? ' active' : '') + '"'
-          + ' style="' + (active ? 'border-color:' + a.color + ';background:' + a.color + '20;color:' + a.color : '') + '"'
-          + ' onclick="setMsgTo(\'' + a.id + '\')">'
-          + '<div class="pill-dot" style="background:' + a.color + '"></div>'
-          + escHtml(a.name) + '</div>';
-      }).join('')
-    + '</div>'
+    + '<button class="picker-bar" onclick="openMsgToPicker()">'
+    + '<span class="pb-dot" style="background:' + toColor + '"></span>'
+    + '<span class="pb-name">' + escHtml(toName) + '</span>'
+    + '<span class="pb-chev">選ぶ ▾</span></button>'
     + '<textarea class="compose-textarea" id="msg-content" placeholder="メッセージを書く…" maxlength="500"'
     + ' oninput="onMsgInput(this.value)" onkeydown="onMsgKeydown(event)">'
     + escHtml(msgContent) + '</textarea>'
@@ -1216,11 +1177,6 @@ function renderSettings() {
     + (showAlterForm ? renderAlterForm() : '')
     + alterListHtml
     + '</div>'
-    + '<div class="card settings-section">'
-    + '<div class="settings-label">システム名</div>'
-    + '<input type="text" id="settings-sysname" value="' + escHtml(state.systemName) + '" maxlength="30" />'
-    + '<button class="btn-primary" style="margin-top:12px" onclick="saveSystemName()">保存</button>'
-    + '</div>'
     + (state.linkedToMosaic ? '<div class="card settings-section">'
     + '<div class="settings-label">Mosaicとの連携</div>'
     + '<div class="settings-desc">現在Mosaicのデータと連携しています。人格の変更はMosaicにも反映されます。</div>'
@@ -1232,6 +1188,12 @@ function renderSettings() {
     + '<div class="stat-row" style="border-top:none;padding-top:0"><span class="stat-row-label">人格数</span><span class="stat-row-val">' + state.alters.length + '人</span></div>'
     + '<div class="stat-row"><span class="stat-row-label">フロント記録</span><span class="stat-row-val">' + state.frontingLog.length + '件</span></div>'
     + '<div class="stat-row"><span class="stat-row-label">メッセージ</span><span class="stat-row-val">' + state.messages.length + '件</span></div>'
+    + '</div>'
+    + '<div class="card settings-section">'
+    + '<div class="settings-label">バックアップ（書き出し・復元）</div>'
+    + '<div class="settings-desc">フロント記録・メッセージ・人格を1つのファイルに書き出して保存できます。機種変更や故障に備えて、ときどき書き出しておくと安心です。復元すると、ファイルの内容が今のデータに<strong>追加</strong>されます（同じ記録は重複しません）。</div>'
+    + '<button class="btn-primary" style="width:100%;margin-bottom:8px" onclick="exportBackup()">バックアップを書き出す</button>'
+    + '<label class="btn-secondary" style="display:block;text-align:center;width:100%;cursor:pointer;margin:0">バックアップから復元<input type="file" accept="application/json,.json" hidden onchange="onBackupFilePick(event)" /></label>'
     + '</div>'
     + '<div class="card settings-section">'
     + '<div class="settings-label">Mosaicへ引き継ぐ</div>'
@@ -1394,17 +1356,6 @@ function deleteAlter(id) {
   refreshSettings();
 }
 
-function saveSystemName() {
-  var inp = document.getElementById('settings-sysname');
-  if (!inp || !inp.value.trim()) return;
-  state.systemName = inp.value.trim();
-  saveState();
-  if (state.linkedToMosaic) syncToMosaic();
-  var navTitle = document.querySelector('.nav-title');
-  if (navTitle) navTitle.textContent = state.systemName;
-  showToast('システム名を保存しました');
-}
-
 function unlinkMosaic() {
   if (!confirm('Mosaicとの連携を解除しますか？既存のデータは消えません。')) return;
   state.linkedToMosaic = false;
@@ -1412,6 +1363,92 @@ function unlinkMosaic() {
   refreshSettings();
   showToast('連携を解除しました');
 }
+
+// ── バックアップ（全データの書き出し・復元） ─────────────────────────────────
+function exportBackup() {
+  try {
+    var data = {
+      app: 'shift', type: 'backup', version: APP_VERSION, exportedAt: new Date().toISOString(),
+      state: { alters: state.alters, frontingLog: state.frontingLog, messages: state.messages, agreedTermsVersion: state.agreedTermsVersion }
+    };
+    var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var d = new Date();
+    var stamp = '' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+    var a = document.createElement('a');
+    a.href = url; a.download = 'shift-backup-' + stamp + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
+    showToast('バックアップを書き出しました');
+  } catch { showToast('書き出しに失敗しました'); }
+}
+function onBackupFilePick(ev) {
+  var file = (ev.target.files || [])[0];
+  ev.target.value = '';
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    var data;
+    try { data = JSON.parse(reader.result); } catch { showToast('このファイルは読み込めませんでした'); return; }
+    if (!data || data.app !== 'shift' || !data.state) { showToast('Shiftのバックアップファイルではありません'); return; }
+    importBackup(data);
+  };
+  reader.onerror = function() { showToast('読み込みに失敗しました'); };
+  reader.readAsText(file);
+}
+function importBackup(data) {
+  var bs = data.state || {};
+  var inAlters = Array.isArray(bs.alters) ? bs.alters : [];
+  var inLog    = Array.isArray(bs.frontingLog) ? bs.frontingLog : [];
+  var inMsgs   = Array.isArray(bs.messages) ? bs.messages : [];
+  function hasId(arr, id) { return arr.some(function(x) { return x.id === id; }); }
+  var newAlters = inAlters.filter(function(a) { return !hasId(state.alters, a.id); }).length;
+  var newLog    = inLog.filter(function(e) { return !hasId(state.frontingLog, e.id); }).length;
+  var newMsgs   = inMsgs.filter(function(m) { return !hasId(state.messages, m.id); }).length;
+  if (!confirm('バックアップを読み込みます。\n人格 ' + newAlters + '人・フロント記録 ' + newLog + '件・メッセージ ' + newMsgs + '件を追加します（同じものは重複しません）。続けますか？')) return;
+  inAlters.forEach(function(a) { if (!hasId(state.alters, a.id)) state.alters.push(a); });
+  inLog.forEach(function(e) { if (!hasId(state.frontingLog, e.id)) state.frontingLog.push(e); });
+  inMsgs.forEach(function(m) { if (!hasId(state.messages, m.id)) state.messages.push(m); });
+  state.frontingLog.sort(function(a, b) { return new Date(b.startedAt) - new Date(a.startedAt); });
+  state.messages.sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+  if (typeof bs.agreedTermsVersion === 'number') state.agreedTermsVersion = Math.max(state.agreedTermsVersion || 0, bs.agreedTermsVersion);
+  if (!state.initialized) state.initialized = true;
+  saveState();
+  if (state.linkedToMosaic) syncToMosaic();
+  render();
+  showToast('復元しました（人格 ' + newAlters + '・記録 ' + newLog + '・メッセージ ' + newMsgs + '）');
+}
+
+// ── 人格を選ぶシート（フロント交代・メッセージの送信者/宛先で共用。Mosaicと統一） ──
+function openAlterSheet(title, currentId, onclickFor, includeAll) {
+  var root = document.getElementById('sheet-root');
+  if (!root) return;
+  var items = '';
+  if (includeAll) {
+    items += '<div class="sheet-item" onclick="' + onclickFor('all') + '">'
+      + '<div class="avatar" style="width:40px;height:40px;background:var(--accent);font-size:15px">皆</div>'
+      + '<div><div class="si-name">全員へ</div><div class="si-sub">システム全体</div></div>'
+      + (currentId === 'all' ? '<span class="si-check">✓</span>' : '')
+      + '</div>';
+  }
+  items += state.alters.map(function(a) {
+    return '<div class="sheet-item" onclick="' + onclickFor(a.id) + '">'
+      + avatarHTML(a, 40)
+      + '<div><div class="si-name">' + escHtml(a.name) + '</div><div class="si-sub">@' + escHtml(a.handle) + '</div></div>'
+      + (currentId === a.id ? '<span class="si-check">✓</span>' : '')
+      + '</div>';
+  }).join('');
+  root.innerHTML = '<div class="sheet-overlay" onclick="if(event.target===this)closeSheet()">'
+    + '<div class="sheet"><div class="sheet-title">' + escHtml(title) + '</div>' + items + '</div></div>';
+}
+function closeSheet() { var r = document.getElementById('sheet-root'); if (r) r.innerHTML = ''; }
+
+function openFrontPicker()  { openAlterSheet('誰がフロントに？', frontChangeAlterId, function(id) { return "pickFront('" + id + "')"; }, false); }
+function pickFront(id)      { closeSheet(); selectFrontAlter(id); }
+function openMsgFromPicker(){ openAlterSheet('送信者を選ぶ', msgFromAlterId, function(id) { return "pickMsgFrom('" + id + "')"; }, false); }
+function pickMsgFrom(id)    { closeSheet(); setMsgFrom(id); }
+function openMsgToPicker()  { openAlterSheet('宛先を選ぶ', msgToAlterId, function(id) { return "pickMsgTo('" + id + "')"; }, true); }
+function pickMsgTo(id)      { closeSheet(); setMsgTo(id); }
 
 // ── Mosaic連携（引き継ぎコードの読み書き） ───────────────────────────────────────
 function encodeLink(str) {
