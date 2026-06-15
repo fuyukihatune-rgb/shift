@@ -140,6 +140,10 @@
     .alter-card-role { font-size: 12px; color: var(--text-3); margin-top: 2px; }
     .alter-card-count { font-size: 11px; color: var(--text-4); margin-top: 3px; }
     .alter-card-btns { display: flex; flex-direction: column; gap: 6px; }
+    .reorder-btn { padding: 7px 12px; display: inline-flex; align-items: center; justify-content: center; }
+    .reorder-btn svg { width: 16px; height: 16px; display: block; }
+    .btn-ghost:disabled { opacity: 0.32; cursor: default; }
+    .reorder-hint { font-size: 12px; color: var(--text-3); line-height: 1.6; background: var(--accent-soft); border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; }
 
     /* ── Settings ── */
     .settings-section { margin-bottom: 12px; }
@@ -267,10 +271,11 @@ const MOSAIC_KEY  = 'mosaic_v1';
 
 // ── アプリのバージョン ────────────────────────────────────────────────────────
 // 更新するたびに数字を上げる。sw.js の CACHE_NAME も合わせて変えること。
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const VERSION_KEY = 'shift_version';
 // 今回のバージョンで新しくなったところ（アップデート画面に出ます）
 const WHATS_NEW = [
+  "人格一覧を「並び替え」できるようにしました（順番はフロント交代・宛先選びにも反映されます）",
   "すべての記録をファイルに書き出して保存・復元できる「バックアップ」を追加しました（設定）",
   "フロント交代・メッセージの送信者／宛先を、一覧から選ぶだけにして分かりやすくしました（Mosaicと統一）",
   "最初の設定をかんたんにしました",
@@ -319,6 +324,9 @@ let frontChangeAlterId  = null;
 let msgFilter           = 'all'; // 'all' | 'mine' | 'sent'
 let showAlterForm       = false;
 let editingAlterId      = null;
+let reorderAltersMode   = false;
+const ICON_UP   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg>';
+const ICON_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 10 12 16 18 10"/></svg>';
 let alterFormData       = { name: '', handle: '', color: PALETTE[0], role: '' };
 let setupStep           = 1;
 let setupData           = { systemName: '', alterName: '', alterHandle: '', alterColor: PALETTE[0], alterRole: '' };
@@ -1148,8 +1156,14 @@ function renderSettings() {
       + '</div>';
   }
 
-  var alterListHtml = state.alters.map(function(a) {
+  var lastIdx = state.alters.length - 1;
+  var alterListHtml = state.alters.map(function(a, i) {
     var logCount = state.frontingLog.filter(function(e) { return e.alterId === a.id; }).length;
+    var btns = reorderAltersMode
+      ? '<button class="btn-ghost reorder-btn" ' + (i === 0 ? 'disabled' : '') + ' onclick="moveAlter(\'' + a.id + '\',-1)" aria-label="上へ">' + ICON_UP + '</button>'
+        + '<button class="btn-ghost reorder-btn" ' + (i === lastIdx ? 'disabled' : '') + ' onclick="moveAlter(\'' + a.id + '\',1)" aria-label="下へ">' + ICON_DOWN + '</button>'
+      : '<button class="btn-ghost" onclick="startEditAlter(\'' + a.id + '\')">編集</button>'
+        + (state.alters.length > 1 ? '<button class="btn-ghost" style="color:var(--text-4)" onclick="deleteAlter(\'' + a.id + '\')">削除</button>' : '');
     return '<div class="card accent" style="border-left-color:' + a.color + ';margin-bottom:8px">'
       + '<div class="alter-card-row">'
       + avatarHTML(a, 44)
@@ -1159,10 +1173,7 @@ function renderSettings() {
       + (a.role ? '<div class="alter-card-role">' + escHtml(a.role) + '</div>' : '')
       + '<div class="alter-card-count">フロント記録 ' + logCount + '件</div>'
       + '</div>'
-      + '<div class="alter-card-btns">'
-      + '<button class="btn-ghost" onclick="startEditAlter(\'' + a.id + '\')">編集</button>'
-      + (state.alters.length > 1 ? '<button class="btn-ghost" style="color:var(--text-4)" onclick="deleteAlter(\'' + a.id + '\')">削除</button>' : '')
-      + '</div></div></div>';
+      + '<div class="alter-card-btns">' + btns + '</div></div></div>';
   }).join('');
 
   return '<div class="section-title" style="margin-bottom:14px">設定</div>'
@@ -1170,11 +1181,14 @@ function renderSettings() {
     + '<div class="card settings-section">'
     + '<div class="section-header" style="margin-bottom:10px">'
     + '<div class="settings-label" style="margin-bottom:0">人格管理</div>'
-    + '<button class="' + (showAlterForm && !editingAlterId ? 'btn-secondary' : 'btn-primary') + '" style="padding:7px 14px;font-size:13px;width:auto" onclick="toggleAlterForm()">'
-    + (showAlterForm && !editingAlterId ? 'キャンセル' : '+ 追加') + '</button>'
+    + '<div style="display:flex;gap:8px">'
+    + (state.alters.length > 1 ? '<button class="btn-secondary" style="padding:7px 14px;font-size:13px;width:auto" onclick="toggleReorderAlters()">' + (reorderAltersMode ? '完了' : '並び替え') + '</button>' : '')
+    + (!reorderAltersMode ? '<button class="' + (showAlterForm && !editingAlterId ? 'btn-secondary' : 'btn-primary') + '" style="padding:7px 14px;font-size:13px;width:auto" onclick="toggleAlterForm()">' + (showAlterForm && !editingAlterId ? 'キャンセル' : '+ 追加') + '</button>' : '')
     + '</div>'
+    + '</div>'
+    + (reorderAltersMode ? '<div class="reorder-hint">▲▼ で並び順を変えられます。この順番が、フロント交代やメッセージの宛先選びにも反映されます。</div>' : '')
     + (state.linkedToMosaic ? '<div style="font-size:12px;color:var(--text-3);margin-bottom:10px;padding:8px 10px;background:var(--bg);border-radius:8px">🔗 Mosaicと連携中 — 人格の変更はMosaicにも反映されます</div>' : '')
-    + (showAlterForm ? renderAlterForm() : '')
+    + (showAlterForm && !reorderAltersMode ? renderAlterForm() : '')
     + alterListHtml
     + '</div>'
     + (state.linkedToMosaic ? '<div class="card settings-section">'
@@ -1307,6 +1321,23 @@ function toggleAlterForm() {
   showAlterForm = !showAlterForm;
   if (!showAlterForm) { editingAlterId = null; alterFormData = { name: '', handle: '', color: PALETTE[0], role: '' }; }
   refreshSettings();
+}
+
+function toggleReorderAlters() {
+  reorderAltersMode = !reorderAltersMode;
+  if (reorderAltersMode) { showAlterForm = false; editingAlterId = null; }
+  refreshSettings();
+}
+
+function moveAlter(id, dir) {
+  var i = state.alters.findIndex(function(a) { return a.id === id; });
+  if (i < 0) return;
+  var j = i + dir;
+  if (j < 0 || j >= state.alters.length) return;
+  var tmp = state.alters[i]; state.alters[i] = state.alters[j]; state.alters[j] = tmp;
+  refreshSettings();
+  saveState();
+  if (state.linkedToMosaic) syncToMosaic();
 }
 
 function cancelAlterForm() {
